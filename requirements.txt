@@ -1,0 +1,15 @@
+selenium
+notion-client
+python-dotenv
+webdriver-manager
+beautifulsoup4
+Flask
+gunicorn
+pandas
+
+2captcha-python
+selenium-stealth
+tzdata
+pdfplumber
+
+openpyxl
