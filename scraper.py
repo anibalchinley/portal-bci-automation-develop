@@ -157,12 +157,35 @@ def setup_driver():
         options = webdriver.ChromeOptions()
         print("1. ChromeOptions inicializado.", flush=True)
         
+        # Configurar directorio de descargas en /tmp
+        downloads_path = "/tmp/downloads"
+        os.makedirs(downloads_path, exist_ok=True)
+        
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-web-security")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-plugins")
+        options.add_argument("--disable-images")
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-renderer-backgrounding")
+        
+        # Configurar preferencias de descarga
+        prefs = {
+            "download.default_directory": downloads_path,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        options.add_experimental_option("prefs", prefs)
+        
         print("2. Opciones de Chrome (headless, no-sandbox, etc.) añadidas.", flush=True)
+        print(f"3. Directorio de descargas configurado: {downloads_path}", flush=True)
 
         # En el entorno de Render, el chromedriver que instala el Dockerfile está en el PATH del sistema.
         # Selenium lo encuentra automáticamente, por lo que no es necesario un Service object.
@@ -170,13 +193,19 @@ def setup_driver():
         
         try:
             driver = webdriver.Chrome(options=options)
+            
+            # Configurar timeouts más largos para Render
+            driver.set_page_load_timeout(180)  # 3 minutos
+            driver.implicitly_wait(30)  # 30 segundos
+            
             print("4. ¡ÉXITO! WebDriver de Selenium (Modo Estándar) inicializado.", flush=True)
+            print("5. Timeouts configurados para entorno de producción.", flush=True)
         except Exception as e:
             print(f"Error al inicializar webdriver.Chrome: {e}", flush=True)
             print("Esto puede indicar un problema con el chromedriver en el PATH del servidor.", flush=True)
             return None
 
-        print("5. Aplicando parches de sigilo con selenium-stealth...", flush=True)
+        print("6. Aplicando parches de sigilo con selenium-stealth...", flush=True)
         stealth(driver,
                 languages=["es-ES", "es"],
                 vendor="Google Inc.",
@@ -185,7 +214,7 @@ def setup_driver():
                 renderer="Intel Iris OpenGL Engine",
                 fix_hairline=True,
                 )
-        print("6. Parches de sigilo aplicados.", flush=True)
+        print("7. Parches de sigilo aplicados.", flush=True)
         
         return driver
 
@@ -816,8 +845,12 @@ def sondear_siniestros_liquidacion(driver, compania):
         # PASO 3: Preparar descarga
         print("Buscando y clickeando el botón de Excel...", flush=True)
 
+        # Configurar directorio de descargas para Render
+        downloads_dir = "/tmp/downloads"
+        os.makedirs(downloads_dir, exist_ok=True)
+        print(f"Directorio de descargas configurado: {downloads_dir}", flush=True)
+        
         # Limpiar descargas anteriores
-        downloads_dir = os.path.expanduser("~/Downloads")
         excel_files_before = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
 
         # Buscar y hacer clic en el botón de Excel
@@ -828,28 +861,44 @@ def sondear_siniestros_liquidacion(driver, compania):
         print("Descarga iniciada...", flush=True)
 
         # PASO 4: Esperar y validar descarga
-        max_wait_time = 30  # 30 segundos máximo
+        max_wait_time = 60  # 60 segundos máximo para Render
         wait_time = 0
         downloaded_file = None
 
         while wait_time < max_wait_time:
-            time.sleep(1)
-            wait_time += 1
+            time.sleep(2)  # Esperar un poco más en cada iteración
+            wait_time += 2
 
-            # Buscar nuevos archivos Excel
-            excel_files_after = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
-            new_files = [f for f in excel_files_after if f not in excel_files_before]
+            try:
+                # Buscar nuevos archivos Excel
+                if os.path.exists(downloads_dir):
+                    excel_files_after = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
+                    new_files = [f for f in excel_files_after if f not in excel_files_before]
 
-            if new_files:
-                downloaded_file = os.path.join(downloads_dir, new_files[0])
-                print(f"Archivo descargado: {new_files[0]}", flush=True)
-                break
+                    if new_files:
+                        downloaded_file = os.path.join(downloads_dir, new_files[0])
+                        print(f"Archivo descargado: {new_files[0]}", flush=True)
+                        # Esperar un poco más para asegurar que la descarga esté completa
+                        time.sleep(3)
+                        break
+            except Exception as e:
+                print(f"Error verificando descargas: {e}", flush=True)
 
-            if wait_time % 5 == 0:
+            if wait_time % 10 == 0:
                 print(f"Esperando descarga... ({wait_time}s)", flush=True)
 
         if not downloaded_file:
-            raise Exception("No se pudo descargar el archivo Excel en el tiempo esperado")
+            # Intentar buscar cualquier archivo Excel en el directorio
+            try:
+                all_excel_files = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
+                if all_excel_files:
+                    # Usar el archivo más reciente
+                    downloaded_file = os.path.join(downloads_dir, max(all_excel_files, key=lambda f: os.path.getctime(os.path.join(downloads_dir, f))))
+                    print(f"Usando archivo Excel más reciente: {os.path.basename(downloaded_file)}", flush=True)
+                else:
+                    raise Exception(f"No se pudo descargar el archivo Excel en el tiempo esperado. Directorio: {downloads_dir}")
+            except Exception as e:
+                raise Exception(f"No se pudo descargar el archivo Excel: {e}")
 
         # PASO 5: Leer y validar archivo Excel
         print("Procesando archivo Excel...", flush=True)
@@ -965,8 +1014,17 @@ def sondear_siniestros_liquidacion(driver, compania):
                 if downloaded_file and os.path.exists(downloaded_file):
                     os.remove(downloaded_file)
                     print("Archivo Excel temporal eliminado", flush=True)
+                # Limpiar otros archivos Excel antiguos en el directorio
+                for file in os.listdir(downloads_dir):
+                    if file.endswith('.xlsx'):
+                        file_path = os.path.join(downloads_dir, file)
+                        try:
+                            os.remove(file_path)
+                            print(f"Archivo Excel antiguo eliminado: {file}", flush=True)
+                        except Exception as e:
+                            print(f"No se pudo eliminar archivo antiguo {file}: {e}", flush=True)
             except Exception as e:
-                print(f"No se pudo eliminar archivo temporal: {e}", flush=True)
+                print(f"No se pudo eliminar archivos temporales: {e}", flush=True)
 
     except Exception as e:
         print(f"Error crítico durante la descarga/procesamiento de Excel: {e}", flush=True)
