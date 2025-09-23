@@ -688,21 +688,28 @@ def extraer_datos_pdf(driver):
             print("Pestaña del PDF cerrada. Volviendo a la pestaña original.", flush=True)
     return pdf_data
 
-def safe_extract_text(row, selector):
+def safe_extract_text(row, selector, timeout=2):
     """
-    Extrae texto de un elemento de manera segura, devolviendo cadena vacía si no existe.
+    Extrae texto de un elemento de manera segura con timeout, devolviendo cadena vacía si no existe.
 
     Args:
         row: Elemento WebElement de la fila
         selector: Selector CSS del elemento a extraer
+        timeout: Tiempo máximo para buscar el elemento (default: 2 segundos)
 
     Returns:
         str: Texto del elemento o cadena vacía si no existe
     """
     try:
-        element = row.find_element(By.CSS_SELECTOR, selector)
-        return element.text.strip() if element.text else ''
-    except NoSuchElementException:
+        # Usar WebDriverWait con timeout corto para evitar cuelgues
+        element = WebDriverWait(row, timeout).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+        )
+        return element.text.strip() if element and element.text else ''
+    except (NoSuchElementException, TimeoutException):
+        return ''
+    except Exception as e:
+        print(f"DEBUG: Error extrayendo texto con selector {selector}: {e}", flush=True)
         return ''
 
 
@@ -710,12 +717,18 @@ def safe_extract_text(row, selector):
 def sondear_siniestros_asignados(driver, compania):
     """
     Orquesta el proceso de scraping en la pestaña 'Asignados'.
-    v4.5: Añade el parámetro compania para etiquetar los datos.
+    v5.1: Corregido con navegación completa como en código de producción.
     """
     print(f"\n--- Iniciando sondeo de Siniestros Asignados para {compania.upper()} ---", flush=True)
-    processed_siniestros = set()
+    
     try:
-        # Navegación a la pestaña 'Asignados'
+        # Navegación inicial (CORREGIDA según código de producción)
+        print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
+        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
+        esperar_pagina_cargada(driver)
+        submenu_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div#item-1.show")))
+        submenu_container.find_element(By.XPATH, ".//a[contains(., 'Gestión de siniestros')]" ).click()
+        esperar_pagina_cargada(driver)
         print("Navegando a la pestaña 'Asignados'", flush=True)
         WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Asignados')]" ))).click()
         esperar_pagina_cargada(driver)
@@ -723,41 +736,47 @@ def sondear_siniestros_asignados(driver, compania):
         page_num = 1
         while True:
             print(f"\nRecolectando datos de tabla en página {page_num}...", flush=True)
-            row_selector = "//tr[contains(@class, 'mat-row')]"
+            row_selector = "//tr[contains(@class, 'mat-row') and .//td[contains(@class, 'mat-column-FechaAsignacion')]]"
             try:
                 WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
                 rows = driver.find_elements(By.XPATH, row_selector)
+                print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
+
+                # Extraer todos los datos de cada fila (EXACTO COMO CÓDIGO DE PRODUCCIÓN)
+                for row in rows:
+                    row_data = {
+                        'Compania': compania,
+                        'FechaAsignacion': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaAsignacion").text,
+                        'NumeroSiniestro': row.find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text,
+                        'EstadoContacto': row.find_element(By.CSS_SELECTOR, "td.mat-column-EstadoContacto").text,
+                        'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
+                        'NombreAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-NombreAsegurado").text,
+                        'RutAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-RutAsegurado").text,
+                        'CorreoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-EmailAsegurado").text,
+                        'TelefonoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-TelefonoAsegurado").text,
+                        'Marca': row.find_element(By.CSS_SELECTOR, "td.mat-column-Marca").text,
+                        'Modelo': row.find_element(By.CSS_SELECTOR, "td.mat-column-Modelo").text,
+                        'TipoDanio': row.find_element(By.CSS_SELECTOR, "td.mat-column-TipoDanio").text,
+                        'FechaEstimadaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaEstimadaIngreso").text
+                    }
+                    yield row_data
+                
+                print(f"Datos de {len(rows)} filas guardados.", flush=True)
+
             except TimeoutException:
-                rows = []
-            if not rows:
                 print("No se encontraron más filas de 'Asignados' en esta página. Finalizando recolección.", flush=True)
                 break
-            print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
 
-            # Extraer todos los datos de cada fila
-            for row in rows:
-                row_data = {
-                    'Compania': compania,
-                    'FechaAsignacion': safe_extract_text(row, "td.mat-column-FechaAsignacion"),
-                    'NumeroSiniestro': safe_extract_text(row, "td.mat-column-NumeroSiniestro"),
-                    'EstadoContacto': safe_extract_text(row, "td.mat-column-EstadoContacto"),
-                    'Patente': safe_extract_text(row, "td.mat-column-Patente"),
-                    'NombreAsegurado': safe_extract_text(row, "td.mat-column-NombreAsegurado"),
-                    'RutAsegurado': safe_extract_text(row, "td.mat-column-RutAsegurado"),
-                    'CorreoAsegurado': safe_extract_text(row, "td.mat-column-EmailAsegurado"),
-                    'TelefonoAsegurado': safe_extract_text(row, "td.mat-column-TelefonoAsegurado"),
-                    'Marca': safe_extract_text(row, "td.mat-column-Marca"),
-                    'Modelo': safe_extract_text(row, "td.mat-column-Modelo"),
-                    'TipoDanio': safe_extract_text(row, "td.mat-column-TipoDanio"),
-                    'FechaEstimadaIngreso': safe_extract_text(row, "td.mat-column-FechaEstimadaIngreso")
-                }
-                yield row_data
-                processed_siniestros.add(row_data['NumeroSiniestro'])
-
-            print(f"Datos de {len(rows)} filas guardados.", flush=True)
-
-            # Paginación
+            # Paginación (EXACTA COMO CÓDIGO DE PRODUCCIÓN)
             try:
+                # Store the first row's unique identifier before attempting to paginate
+                first_row_id_before_pagination = None
+                if rows: # Check if there are rows on the current page
+                    try:
+                        first_row_id_before_pagination = rows[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                    except NoSuchElementException:
+                        print("WARN: Could not get first row ID for pagination check.", flush=True)
+
                 next_button_selector = "button.mat-paginator-navigation-next:not([disabled])"
                 next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
                 driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
@@ -766,29 +785,18 @@ def sondear_siniestros_asignados(driver, compania):
                 esperar_pagina_cargada(driver)
                 page_num += 1
 
-                # Verificar si se encontraron nuevas filas después de la paginación
-                time.sleep(2)  # Dar tiempo a que se cargue la nueva página
-                row_selector = "//tr[contains(@class, 'mat-row')]"
-                try:
-                    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
-                    rows_after_pagination = driver.find_elements(By.XPATH, row_selector)
-                except TimeoutException:
-                    rows_after_pagination = []
+                # After clicking next, re-evaluate rows on the new page
+                WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
+                rows_after_pagination = driver.find_elements(By.XPATH, row_selector)
 
-                if not rows_after_pagination:
+                # Check if the content has changed (i.e., we moved to a new page) and if the number of rows is 0
+                if first_row_id_before_pagination and rows_after_pagination:
+                    first_row_id_after_pagination = rows_after_pagination[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                    if first_row_id_before_pagination == first_row_id_after_pagination:
+                        print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
+                        break # Break if we are stuck on the same page content
+                elif not rows_after_pagination: # If no rows are found on the new page, it's the end
                     print("No se encontraron filas en la nueva página. Fin de la recolección.", flush=True)
-                    break
-
-                # Verificar si hay al menos una fila nueva única
-                new_unique_found = False
-                for row in rows_after_pagination[:5]:  # Revisar las primeras 5 filas
-                    numero_siniestro = safe_extract_text(row, "td.mat-column-NumeroSiniestro")
-                    if numero_siniestro and numero_siniestro not in processed_siniestros:
-                        new_unique_found = True
-                        break
-
-                if not new_unique_found:
-                    print("No se encontraron filas nuevas únicas en la página. Fin de la recolección.", flush=True)
                     break
 
             except (NoSuchElementException, TimeoutException):
