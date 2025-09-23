@@ -1,0 +1,15 @@
+# Archivos de entorno - ¡No subir credenciales a GitHub!
+.env
+
+# Base de datos local de SQLite
+notion_data.db
+*.db
+*.db-journal
+
+# Directorios de cache de Python
+__pycache__/
+*.pyc
+
+# Archivos de configuración de IDEs
+.vscode/
+.idea/
