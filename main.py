@@ -137,7 +137,20 @@ def trigger_run():
             except (BrokenPipeError, ConnectionResetError, GeneratorExit):
                 print("Cliente desconectado - proceso finalizado sin mensaje final", flush=True)
         
-    return Response(stream_with_context(generate()), mimetype='text/plain')
+    def safe_generate():
+        try:
+            for chunk in generate():
+                yield chunk
+        except (BrokenPipeError, ConnectionResetError, GeneratorExit) as e:
+            print(f"Cliente desconectado durante streaming: {type(e).__name__}", flush=True)
+        except Exception as e:
+            print(f"Error durante streaming: {e}", flush=True)
+            try:
+                yield f"Error durante el proceso: {str(e)}\n".encode('utf-8')
+            except:
+                pass
+    
+    return Response(stream_with_context(safe_generate()), mimetype='text/plain')
 
 if __name__ == '__main__':
     print(">>> Iniciando servidor Flask para pruebas locales. Escuchando en http://0.0.0.0:8000")

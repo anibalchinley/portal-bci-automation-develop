@@ -876,11 +876,19 @@ def sondear_siniestros_liquidacion(driver, compania):
                     new_files = [f for f in excel_files_after if f not in excel_files_before]
 
                     if new_files:
-                        downloaded_file = os.path.join(downloads_dir, new_files[0])
-                        print(f"Archivo descargado: {new_files[0]}", flush=True)
-                        # Esperar un poco más para asegurar que la descarga esté completa
-                        time.sleep(3)
-                        break
+                        potential_file = os.path.join(downloads_dir, new_files[0])
+                        # Verificar estabilidad del archivo (tamaño no cambia)
+                        if os.path.exists(potential_file):
+                            size1 = os.path.getsize(potential_file)
+                            time.sleep(2)
+                            if os.path.exists(potential_file):
+                                size2 = os.path.getsize(potential_file)
+                                if size1 == size2 and size1 > 0:
+                                    downloaded_file = potential_file
+                                    print(f"Archivo descargado y verificado: {new_files[0]} ({size1} bytes)", flush=True)
+                                    break
+                                else:
+                                    print(f"Archivo aún descargando... ({size1} -> {size2} bytes)", flush=True)
             except Exception as e:
                 print(f"Error verificando descargas: {e}", flush=True)
 
