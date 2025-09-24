@@ -779,6 +779,7 @@ def sondear_siniestros_liquidacion(driver, compania):
 
         # Verificar si el submenu está visible
         submenu_visible = False
+        submenu_container = None
         try:
             submenu_container = driver.find_element(By.CSS_SELECTOR, "div#item-1.show")
             if submenu_container.is_displayed():
@@ -789,10 +790,21 @@ def sondear_siniestros_liquidacion(driver, compania):
         except NoSuchElementException:
             print("DEBUG: Submenu 'div#item-1.show' no encontrado.", flush=True)
 
+        # DEBUG: Inspeccionar pestañas disponibles en el submenu
+        if submenu_container and submenu_visible:
+            try:
+                tabs = submenu_container.find_elements(By.TAG_NAME, "a")
+                print("DEBUG: Pestañas disponibles en el submenu:", flush=True)
+                for tab in tabs:
+                    print(f"  - Texto: '{tab.text}' | Visible: {tab.is_displayed()} | Enabled: {tab.is_enabled()}", flush=True)
+            except Exception as e:
+                print(f"DEBUG: Error al inspeccionar pestañas: {e}", flush=True)
+
         # Verificar si la pestaña 'Análisis de Liquidación' ya está activa
         tab_active = False
         try:
-            analisis_tab = driver.find_element(By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]")
+            # Usar XPath con translate para manejar acentos y hacer búsqueda más robusta
+            analisis_tab = driver.find_element(By.XPATH, "//a[contains(translate(text(), 'ÁÉÍÓÚ', 'AEIOU'), 'ANALISIS DE LIQUIDACION')]")
             if analisis_tab.is_displayed():
                 class_attr = analisis_tab.get_attribute("class")
                 if "active" in class_attr or "mat-tab-label-active" in class_attr:
@@ -809,7 +821,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         # Solo navegar directamente a la pestaña si no está activa
         if not tab_active:
             print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]" ))).click()
+            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(translate(text(), 'ÁÉÍÓÚ', 'AEIOU'), 'ANALISIS DE LIQUIDACION')]" ))).click()
             esperar_pagina_cargada(driver)
         else:
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
