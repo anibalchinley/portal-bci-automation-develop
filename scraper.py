@@ -843,7 +843,31 @@ def sondear_siniestros_liquidacion(driver, compania):
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
         
         # Find and click download button
-        download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]" )))
+        download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]" )))
+        # DEBUG: Inspect buttons with images before attempting to find download button
+        print("DEBUG: Inspeccionando botones con imágenes antes de buscar el botón de descarga...", flush=True)
+        try:
+            all_buttons_with_img = driver.find_elements(By.XPATH, "//button[.//img]")
+            print(f"DEBUG: Encontrados {len(all_buttons_with_img)} botones con img:", flush=True)
+            for i, btn in enumerate(all_buttons_with_img):
+                try:
+                    img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
+                    print(f"  Botón {i+1}: src='{img_src}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+                except Exception as e:
+                    print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar botones con img: {e}", flush=True)
+
+        # DEBUG: Inspect all buttons containing text related to download
+        try:
+            all_download_buttons = driver.find_elements(By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]")
+            print(f"DEBUG: Encontrados {len(all_download_buttons)} botones con texto de descarga:", flush=True)
+            for i, btn in enumerate(all_download_buttons):
+                print(f"  Botón {i+1}: text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar botones de descarga por texto: {e}", flush=True)
+
+        print("DEBUG: Intentando encontrar el botón de descarga con el selector actual...", flush=True)
         download_button.click()
         
         # Wait for download
