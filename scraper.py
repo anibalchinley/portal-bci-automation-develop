@@ -770,18 +770,49 @@ def sondear_siniestros_liquidacion(driver, compania):
     Orquesta el proceso de descarga y procesamiento de Excel para Análisis de Liquidación.
     """
     print(f"\n--- Iniciando sondeo de Siniestros Liquidación para {compania.upper()} ---", flush=True)
-    
+
     try:
-        # Navegación a Análisis de Liquidación
-        print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
-        esperar_pagina_cargada(driver)
-        submenu_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div#item-1.show")))
-        submenu_container.find_element(By.XPATH, ".//a[contains(., 'Gestión de siniestros')]" ).click()
-        esperar_pagina_cargada(driver)
-        print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]" ))).click()
-        esperar_pagina_cargada(driver)
+        # Verificar estado actual antes de navegación
+        print("DEBUG: Verificando estado actual de la página...", flush=True)
+        current_url = driver.current_url
+        print(f"DEBUG: URL actual: {current_url}", flush=True)
+
+        # Verificar si el submenu está visible
+        submenu_visible = False
+        try:
+            submenu_container = driver.find_element(By.CSS_SELECTOR, "div#item-1.show")
+            if submenu_container.is_displayed():
+                submenu_visible = True
+                print("DEBUG: Submenu 'div#item-1.show' ya está visible.", flush=True)
+            else:
+                print("DEBUG: Submenu 'div#item-1.show' no está visible.", flush=True)
+        except NoSuchElementException:
+            print("DEBUG: Submenu 'div#item-1.show' no encontrado.", flush=True)
+
+        # Verificar si la pestaña 'Análisis de Liquidación' ya está activa
+        tab_active = False
+        try:
+            analisis_tab = driver.find_element(By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]")
+            if analisis_tab.is_displayed():
+                class_attr = analisis_tab.get_attribute("class")
+                if "active" in class_attr or "mat-tab-label-active" in class_attr:
+                    tab_active = True
+                    print("DEBUG: Pestaña 'Análisis de Liquidación' ya está activa.", flush=True)
+                else:
+                    print("DEBUG: Pestaña 'Análisis de Liquidación' está visible pero no activa.", flush=True)
+            else:
+                print("DEBUG: Pestaña 'Análisis de Liquidación' no está visible.", flush=True)
+        except NoSuchElementException:
+            print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
+
+        # Asumir que ya estamos en "Gestión de siniestros" desde sondear_siniestros_asignados
+        # Solo navegar directamente a la pestaña si no está activa
+        if not tab_active:
+            print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
+            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]" ))).click()
+            esperar_pagina_cargada(driver)
+        else:
+            print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
         
         # Find and click download button
         download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]" )))
