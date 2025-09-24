@@ -841,9 +841,74 @@ def sondear_siniestros_liquidacion(driver, compania):
             esperar_pagina_cargada(driver)
         else:
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
-        
+
+        # DEBUG: Inspeccionar todos los botones disponibles en la página
+        print("DEBUG: Inspeccionando todos los botones en la página...", flush=True)
+        try:
+            all_buttons = driver.find_elements(By.TAG_NAME, "button")
+            print(f"DEBUG: Encontrados {len(all_buttons)} botones en total:", flush=True)
+            for i, btn in enumerate(all_buttons):
+                text = btn.text.strip()
+                visible = btn.is_displayed()
+                enabled = btn.is_enabled()
+                attributes = {attr: btn.get_attribute(attr) for attr in ['id', 'class', 'type', 'data-toggle', 'aria-label'] if btn.get_attribute(attr)}
+                print(f"  Botón {i+1}: text='{text}', visible={visible}, enabled={enabled}, attributes={attributes}", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar botones: {e}", flush=True)
+
+        # DEBUG: Inspeccionar todas las imágenes con src que contengan 'excel' o 'download'
+        print("DEBUG: Inspeccionando imágenes con src relacionado con Excel o descarga...", flush=True)
+        try:
+            all_images = driver.find_elements(By.TAG_NAME, "img")
+            relevant_images = [img for img in all_images if img.get_attribute("src") and ('excel' in img.get_attribute("src").lower() or 'download' in img.get_attribute("src").lower())]
+            print(f"DEBUG: Encontradas {len(relevant_images)} imágenes relevantes:", flush=True)
+            for i, img in enumerate(relevant_images):
+                src = img.get_attribute("src")
+                alt = img.get_attribute("alt") or ""
+                print(f"  Imagen {i+1}: src='{src}', alt='{alt}'", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar imágenes: {e}", flush=True)
+
+        # DEBUG: Verificar elementos con data-toggle u otros atributos relacionados con descarga
+        print("DEBUG: Inspeccionando elementos con data-toggle o atributos de descarga...", flush=True)
+        try:
+            elements_with_data_toggle = driver.find_elements(By.XPATH, "//*[@data-toggle]")
+            print(f"DEBUG: Encontrados {len(elements_with_data_toggle)} elementos con data-toggle:", flush=True)
+            for i, elem in enumerate(elements_with_data_toggle):
+                tag = elem.tag_name
+                data_toggle = elem.get_attribute("data-toggle")
+                text = elem.text.strip()
+                visible = elem.is_displayed()
+                enabled = elem.is_enabled() if tag in ['button', 'input', 'a'] else 'N/A'
+                print(f"  Elemento {i+1}: tag='{tag}', data-toggle='{data_toggle}', text='{text}', visible={visible}, enabled={enabled}", flush=True)
+
+            # Otros atributos relacionados con descarga
+            download_related = driver.find_elements(By.XPATH, "//*[@download or @href[contains(., 'excel') or @href[contains(., 'download')]]")
+            print(f"DEBUG: Encontrados {len(download_related)} elementos con atributos de descarga:", flush=True)
+            for i, elem in enumerate(download_related):
+                tag = elem.tag_name
+                href = elem.get_attribute("href") or ""
+                download = elem.get_attribute("download") or ""
+                text = elem.text.strip()
+                print(f"  Elemento {i+1}: tag='{tag}', href='{href}', download='{download}', text='{text}'", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar elementos con data-toggle: {e}", flush=True)
+
         # Find and click download button
-        download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]" )))
+        # DEBUG: Inspect all buttons matching the current selector before WebDriverWait
+        print("DEBUG: Inspeccionando todos los botones que coinciden con el selector actual antes de WebDriverWait...", flush=True)
+        try:
+            all_matching_buttons = driver.find_elements(By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]")
+            print(f"DEBUG: Encontrados {len(all_matching_buttons)} botones que coinciden con el selector:", flush=True)
+            for i, btn in enumerate(all_matching_buttons):
+                try:
+                    img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
+                    print(f"  Botón {i+1}: src='{img_src}', class='{btn.get_attribute('class')}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+                except Exception as e:
+                    print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar botones coincidentes: {e}", flush=True)
+
         # DEBUG: Inspect buttons with images before attempting to find download button
         print("DEBUG: Inspeccionando botones con imágenes antes de buscar el botón de descarga...", flush=True)
         try:
@@ -867,7 +932,9 @@ def sondear_siniestros_liquidacion(driver, compania):
         except Exception as e:
             print(f"DEBUG: Error al inspeccionar botones de descarga por texto: {e}", flush=True)
 
-        print("DEBUG: Intentando encontrar el botón de descarga con el selector actual...", flush=True)
+        print("DEBUG: Intentando encontrar el botón de descarga con el selector actualizado...", flush=True)
+        download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'floating-icon')]" )))
+        print(f"DEBUG: Botón de descarga encontrado: class='{download_button.get_attribute('class')}', visible={download_button.is_displayed()}, enabled={download_button.is_enabled()}", flush=True)
         download_button.click()
         
         # Wait for download
