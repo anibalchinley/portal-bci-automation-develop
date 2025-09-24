@@ -5,6 +5,7 @@ import json
 import re
 import io
 import datetime
+import pandas as pd
 import traceback
 import pdfplumber
 from dotenv import load_dotenv
@@ -17,7 +18,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
-import pandas as pd
+import traceback
 import base64
 from twocaptcha import TwoCaptcha
 from selenium_stealth import stealth
@@ -157,35 +158,21 @@ def setup_driver():
         options = webdriver.ChromeOptions()
         print("1. ChromeOptions inicializado.", flush=True)
         
-        # Configurar directorio de descargas en /tmp
-        downloads_path = "/tmp/downloads"
-        os.makedirs(downloads_path, exist_ok=True)
-        
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--disable-web-security")
-        options.add_argument("--disable-features=VizDisplayCompositor")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-plugins")
-        options.add_argument("--disable-images")
-        options.add_argument("--disable-background-timer-throttling")
-        options.add_argument("--disable-backgrounding-occluded-windows")
-        options.add_argument("--disable-renderer-backgrounding")
-        
-        # Configurar preferencias de descarga
-        prefs = {
-            "download.default_directory": downloads_path,
+        download_dir = "/tmp/downloads"
+        os.makedirs(download_dir, exist_ok=True)
+        print("3. Directorio de descargas configurado en /tmp/downloads.", flush=True)
+        options.add_experimental_option("prefs", {
+            "download.default_directory": download_dir,
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
-            "safebrowsing.enabled": True
-        }
-        options.add_experimental_option("prefs", prefs)
-        
+            "plugins.always_open_pdf_externally": True
+        })
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
         print("2. Opciones de Chrome (headless, no-sandbox, etc.) añadidas.", flush=True)
-        print(f"3. Directorio de descargas configurado: {downloads_path}", flush=True)
 
         # En el entorno de Render, el chromedriver que instala el Dockerfile está en el PATH del sistema.
         # Selenium lo encuentra automáticamente, por lo que no es necesario un Service object.
@@ -193,19 +180,13 @@ def setup_driver():
         
         try:
             driver = webdriver.Chrome(options=options)
-            
-            # Configurar timeouts más largos para Render
-            driver.set_page_load_timeout(180)  # 3 minutos
-            driver.implicitly_wait(30)  # 30 segundos
-            
             print("4. ¡ÉXITO! WebDriver de Selenium (Modo Estándar) inicializado.", flush=True)
-            print("5. Timeouts configurados para entorno de producción.", flush=True)
         except Exception as e:
             print(f"Error al inicializar webdriver.Chrome: {e}", flush=True)
             print("Esto puede indicar un problema con el chromedriver en el PATH del servidor.", flush=True)
             return None
 
-        print("6. Aplicando parches de sigilo con selenium-stealth...", flush=True)
+        print("5. Aplicando parches de sigilo con selenium-stealth...", flush=True)
         stealth(driver,
                 languages=["es-ES", "es"],
                 vendor="Google Inc.",
@@ -214,7 +195,7 @@ def setup_driver():
                 renderer="Intel Iris OpenGL Engine",
                 fix_hairline=True,
                 )
-        print("7. Parches de sigilo aplicados.", flush=True)
+        print("6. Parches de sigilo aplicados.", flush=True)
         
         return driver
 
@@ -688,41 +669,15 @@ def extraer_datos_pdf(driver):
             print("Pestaña del PDF cerrada. Volviendo a la pestaña original.", flush=True)
     return pdf_data
 
-def safe_extract_text(row, selector, timeout=2):
-    """
-    Extrae texto de un elemento de manera segura con timeout, devolviendo cadena vacía si no existe.
-
-    Args:
-        row: Elemento WebElement de la fila
-        selector: Selector CSS del elemento a extraer
-        timeout: Tiempo máximo para buscar el elemento (default: 2 segundos)
-
-    Returns:
-        str: Texto del elemento o cadena vacía si no existe
-    """
-    try:
-        # Usar WebDriverWait con timeout corto para evitar cuelgues
-        element = WebDriverWait(row, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-        )
-        return element.text.strip() if element and element.text else ''
-    except (NoSuchElementException, TimeoutException):
-        return ''
-    except Exception as e:
-        print(f"DEBUG: Error extrayendo texto con selector {selector}: {e}", flush=True)
-        return ''
-
-
-
 def sondear_siniestros_asignados(driver, compania):
     """
     Orquesta el proceso de scraping en la pestaña 'Asignados'.
-    v5.1: Corregido con navegación completa como en código de producción.
+    v4.5: Añade el parámetro compania para etiquetar los datos.
     """
     print(f"\n--- Iniciando sondeo de Siniestros Asignados para {compania.upper()} ---", flush=True)
     
     try:
-        # Navegación inicial (CORREGIDA según código de producción)
+        # Navegación inicial
         print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
         WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
         esperar_pagina_cargada(driver)
@@ -742,7 +697,7 @@ def sondear_siniestros_asignados(driver, compania):
                 rows = driver.find_elements(By.XPATH, row_selector)
                 print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
 
-                # Extraer todos los datos de cada fila (EXACTO COMO CÓDIGO DE PRODUCCIÓN)
+                # Extraer todos los datos de cada fila
                 for row in rows:
                     row_data = {
                         'Compania': compania,
@@ -767,7 +722,7 @@ def sondear_siniestros_asignados(driver, compania):
                 print("No se encontraron más filas de 'Asignados' en esta página. Finalizando recolección.", flush=True)
                 break
 
-            # Paginación (EXACTA COMO CÓDIGO DE PRODUCCIÓN)
+            # Paginación
             try:
                 # Store the first row's unique identifier before attempting to paginate
                 first_row_id_before_pagination = None
@@ -810,263 +765,94 @@ def sondear_siniestros_asignados(driver, compania):
         traceback.print_exc()
         take_screenshot(driver, "error_critico_recoleccion_tabla.png")
     
-    print(f"\n--- Proceso de sondeo completado. ---", flush=True)
-
 def sondear_siniestros_liquidacion(driver, compania):
     """
-    Orquesta el proceso de descarga y procesamiento de Excel en la pestaña 'Analisis de Liquidación'.
-    v5.1: Implementación corregida con validaciones, limpieza de datos y estructura consistente.
+    Orquesta el proceso de descarga y procesamiento de Excel para Análisis de Liquidación.
     """
-    print(f"\n--- Iniciando sondeo de Siniestros Analisis de Liquidación para {compania.upper()} (Excel) ---", flush=True)
-
-    processed_siniestros = []
-
+    print(f"\n--- Iniciando sondeo de Siniestros Liquidación para {compania.upper()} ---", flush=True)
+    
     try:
-        # PASO 1: Navegar a la pestaña 'Analisis de Liquidación'
-        print("Navegando a la pestaña 'Analisis de Liquidación'", flush=True)
-        WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Analisis de Liquidación')]"))
-        ).click()
+        # Navegación a Análisis de Liquidación
+        print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
+        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
         esperar_pagina_cargada(driver)
-
-        # PASO 2: Verificar que hay datos para descargar
-        try:
-            # Buscar el número de registros en la pestaña
-            tab_element = driver.find_element(By.XPATH, "//a[contains(text(), 'Analisis de Liquidación')]")
-            tab_text = tab_element.text
-
-            # Extraer número de registros (ej: "Analisis de Liquidación (18)")
-            import re
-            match = re.search(r'\((\d+)\)', tab_text)
-            expected_records = int(match.group(1)) if match else 0
-
-            print(f"Registros esperados según pestaña: {expected_records}", flush=True)
-
-            if expected_records == 0:
-                print("No hay registros en Análisis de Liquidación. Saltando descarga.", flush=True)
-                return
-
-        except Exception as e:
-            print(f"No se pudo determinar número de registros: {e}", flush=True)
-            expected_records = None
-
-        # PASO 3: Preparar descarga
-        print("Buscando y clickeando el botón de Excel...", flush=True)
-
-        # Configurar directorio de descargas para Render
-        downloads_dir = "/tmp/downloads"
-        os.makedirs(downloads_dir, exist_ok=True)
-        print(f"Directorio de descargas configurado: {downloads_dir}", flush=True)
+        submenu_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div#item-1.show")))
+        submenu_container.find_element(By.XPATH, ".//a[contains(., 'Gestión de siniestros')]" ).click()
+        esperar_pagina_cargada(driver)
+        print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
+        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Análisis de Liquidación')]" ))).click()
+        esperar_pagina_cargada(driver)
         
-        # Limpiar descargas anteriores
-        excel_files_before = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
-
-        # Buscar y hacer clic en el botón de Excel
-        excel_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]"))
-        )
-        driver.execute_script("arguments[0].click();", excel_button)
-        print("Descarga iniciada...", flush=True)
-
-        # PASO 4: Esperar y validar descarga
-        max_wait_time = 60  # 60 segundos máximo para Render
-        wait_time = 0
-        downloaded_file = None
-
-        while wait_time < max_wait_time:
-            time.sleep(2)  # Esperar un poco más en cada iteración
-            wait_time += 2
-
-            try:
-                # Buscar nuevos archivos Excel
-                if os.path.exists(downloads_dir):
-                    excel_files_after = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
-                    new_files = [f for f in excel_files_after if f not in excel_files_before]
-
-                    if new_files:
-                        potential_file = os.path.join(downloads_dir, new_files[0])
-                        # Verificar estabilidad del archivo (tamaño no cambia)
-                        if os.path.exists(potential_file):
-                            size1 = os.path.getsize(potential_file)
-                            time.sleep(2)
-                            if os.path.exists(potential_file):
-                                size2 = os.path.getsize(potential_file)
-                                if size1 == size2 and size1 > 0:
-                                    downloaded_file = potential_file
-                                    print(f"Archivo descargado y verificado: {new_files[0]} ({size1} bytes)", flush=True)
-                                    break
-                                else:
-                                    print(f"Archivo aún descargando... ({size1} -> {size2} bytes)", flush=True)
-            except Exception as e:
-                print(f"Error verificando descargas: {e}", flush=True)
-
-            if wait_time % 10 == 0:
-                print(f"Esperando descarga... ({wait_time}s)", flush=True)
-
-        if not downloaded_file:
-            # Intentar buscar cualquier archivo Excel en el directorio
-            try:
-                all_excel_files = [f for f in os.listdir(downloads_dir) if f.endswith('.xlsx')]
-                if all_excel_files:
-                    # Usar el archivo más reciente
-                    downloaded_file = os.path.join(downloads_dir, max(all_excel_files, key=lambda f: os.path.getctime(os.path.join(downloads_dir, f))))
-                    print(f"Usando archivo Excel más reciente: {os.path.basename(downloaded_file)}", flush=True)
-                else:
-                    raise Exception(f"No se pudo descargar el archivo Excel en el tiempo esperado. Directorio: {downloads_dir}")
-            except Exception as e:
-                raise Exception(f"No se pudo descargar el archivo Excel: {e}")
-
-        # PASO 5: Leer y validar archivo Excel
-        print("Procesando archivo Excel...", flush=True)
-
-        try:
-            # Leer el archivo Excel
-            df = pd.read_excel(downloaded_file)
-
-            print(f"Archivo Excel leído: {df.shape[0]} filas, {df.shape[1]} columnas", flush=True)
-
-            # Verificar que tiene las columnas esperadas
-            expected_columns = [
-                'FECHA INGRESO', 'N° SINIESTRO', 'PATENTE', 'RUT ASEGURADO',
-                'MARCA', 'MODELO', 'TIPO DAÑO', 'MOTIVO RECHAZO',
-                'VEHICULO INMOVILIZADO INGRESO', 'FECHA RECHAZO'
-            ]
-
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                print(f"ADVERTENCIA: Columnas faltantes: {missing_columns}", flush=True)
-                print(f"Columnas disponibles: {list(df.columns)}", flush=True)
-
-            # PASO 6: Procesar cada fila del Excel con limpieza de datos
-            for index, row in df.iterrows():
-                try:
-                    # Extraer y validar número de siniestro
-                    numero_siniestro = str(row.get('N° SINIESTRO', '')).strip()
-
-                    if not numero_siniestro or numero_siniestro in ['nan', 'NaN', 'None', 'null', '']:
-                        print(f"Saltando fila {index}: número de siniestro inválido", flush=True)
-                        continue
-
-                    # Verificar duplicados
-                    if numero_siniestro in [s['NumeroSiniestro'] for s in processed_siniestros]:
-                        print(f"Saltando fila {index}: siniestro duplicado {numero_siniestro}", flush=True)
-                        continue
-
-                    # Función para limpiar valores
-                    def clean_value(value):
-                        if pd.isna(value) or value in ['nan', 'NaN', 'None', 'null', None]:
-                            return ''
-                        return str(value).strip()
-
-                    # Procesar fecha de ingreso
-                    fecha_ingreso = row.get('FECHA INGRESO', '')
-                    if pd.notna(fecha_ingreso) and str(fecha_ingreso) != 'nan':
-                        # Convertir formato de fecha si es necesario
-                        if 'T' in str(fecha_ingreso):
-                            fecha_ingreso = str(fecha_ingreso).split('T')[0]
-                        else:
-                            fecha_ingreso = clean_value(fecha_ingreso)
-                    else:
-                        fecha_ingreso = ''
-
-                    # Procesar fecha de rechazo
-                    fecha_rechazo = row.get('FECHA RECHAZO', '')
-                    if pd.notna(fecha_rechazo) and str(fecha_rechazo) != 'nan':
-                        if 'T' in str(fecha_rechazo):
-                            fecha_rechazo = str(fecha_rechazo).split('T')[0]
-                        else:
-                            fecha_rechazo = clean_value(fecha_rechazo)
-                    else:
-                        fecha_rechazo = ''
-
-                    # Crear estructura de datos CONSISTENTE con Asignados
-                    row_data = {
-                        'Compania': compania,
-                        'TipoSeccion': 'Liquidacion',
-                        'FechaIngreso': fecha_ingreso,
-                        'NumeroSiniestro': numero_siniestro,
-                        'Patente': clean_value(row.get('PATENTE', '')),
-                        'RutAsegurado': clean_value(row.get('RUT ASEGURADO', '')),
-                        'Marca': clean_value(row.get('MARCA', '')),
-                        'Modelo': clean_value(row.get('MODELO', '')),
-                        'TipoDano': clean_value(row.get('TIPO DAÑO', '')),
-                        'MotivoRechazo': clean_value(row.get('MOTIVO RECHAZO', '')),
-                        'VehiculoInmovilizadoIngreso': clean_value(row.get('VEHICULO INMOVILIZADO INGRESO', '')),
-                        'FechaRechazo': fecha_rechazo,
-                        # Campos adicionales para consistencia con Asignados (vacíos para Liquidación)
-                        'FechaAsignacion': '',
-                        'EstadoContacto': '',
-                        'NombreAsegurado': '',
-                        'CorreoAsegurado': '',
-                        'TelefonoAsegurado': '',
-                        'FechaEstimadaIngreso': ''
-                    }
-
-                    processed_siniestros.append(row_data)
-                    yield row_data
-
-                    print(f"DEBUG: ✅ Procesado siniestro {numero_siniestro} - {row_data['Patente']} - {row_data['Marca']} {row_data['Modelo']}", flush=True)
-
-                except Exception as e:
-                    print(f"Error procesando fila {index}: {e}", flush=True)
-                    continue
-
-            print(f"Procesamiento completado: {len(processed_siniestros)} siniestros extraídos del Excel", flush=True)
-
-            # Verificar si el número coincide con lo esperado
-            if expected_records and len(processed_siniestros) != expected_records:
-                print(f"ADVERTENCIA: Se esperaban {expected_records} registros, se procesaron {len(processed_siniestros)}", flush=True)
-            else:
-                print(f"✅ ÉXITO: Se procesaron exactamente {len(processed_siniestros)} registros como se esperaba", flush=True)
-
-        except Exception as e:
-            print(f"Error procesando archivo Excel: {e}", flush=True)
-            traceback.print_exc()
-            raise
-
-        finally:
-            # PASO 7: Limpiar archivo descargado
-            try:
-                if downloaded_file and os.path.exists(downloaded_file):
-                    os.remove(downloaded_file)
-                    print("Archivo Excel temporal eliminado", flush=True)
-                # Limpiar otros archivos Excel antiguos en el directorio
-                for file in os.listdir(downloads_dir):
-                    if file.endswith('.xlsx'):
-                        file_path = os.path.join(downloads_dir, file)
-                        try:
-                            os.remove(file_path)
-                            print(f"Archivo Excel antiguo eliminado: {file}", flush=True)
-                        except Exception as e:
-                            print(f"No se pudo eliminar archivo antiguo {file}: {e}", flush=True)
-            except Exception as e:
-                print(f"No se pudo eliminar archivos temporales: {e}", flush=True)
-
+        # Find and click download button
+        download_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]" )))
+        download_button.click()
+        
+        # Wait for download
+        download_dir = "/tmp/downloads"
+        timeout = 60
+        start_time = time.time()
+        file_path = None
+        while time.time() - start_time < timeout:
+            files = os.listdir(download_dir)
+            for file in files:
+                if file.endswith('.xlsx') or file.endswith('.xls'):
+                    file_path = os.path.join(download_dir, file)
+                    break
+            if file_path:
+                break
+            time.sleep(1)
+        
+        if not file_path:
+            print("No se pudo descargar el archivo Excel.")
+            return
+        
+        # Process Excel
+        df = pd.read_excel(file_path)
+        
+        # Map columns to consistent structure
+        column_mapping = {
+            'FechaAsignacion': 'FechaAsignacion',
+            'NumeroSiniestro': 'NumeroSiniestro',
+            'EstadoContacto': 'EstadoContacto',
+            'Patente': 'Patente',
+            'NombreAsegurado': 'NombreAsegurado',
+            'RutAsegurado': 'RutAsegurado',
+            'CorreoAsegurado': 'CorreoAsegurado',
+            'TelefonoAsegurado': 'TelefonoAsegurado',
+            'Marca': 'Marca',
+            'Modelo': 'Modelo',
+            'TipoDanio': 'TipoDanio',
+            'FechaEstimadaIngreso': 'FechaEstimadaIngreso'
+        }
+        
+        for index, row in df.iterrows():
+            row_data = {'Compania': compania}
+            for key, col in column_mapping.items():
+                row_data[key] = row.get(col, '')
+            yield row_data
+        
+        # Clean up
+        os.remove(file_path)
+        
     except Exception as e:
-        print(f"Error crítico durante la descarga/procesamiento de Excel: {e}", flush=True)
+        print(f"Error en sondear_siniestros_liquidacion: {e}")
         traceback.print_exc()
-        take_screenshot(driver, "error_critico_liquidacion_excel.png")
-
-    print(f"\n--- Proceso de sondeo de Analisis de Liquidación (Excel) completado. Total siniestros procesados: {len(processed_siniestros)} ---", flush=True)
+        take_screenshot(driver, "error_liquidacion.png")
+    
+    print(f"\n--- Proceso de sondeo de liquidación completado. ---", flush=True)
+    print(f"\n--- Proceso de sondeo completado. ---", flush=True)
 
 def scrape_full_data(driver):
     """
     Orquesta el proceso completo de scraping para todas las compañías definidas.
     """
     print("--- Iniciando proceso de scraping completo ---", flush=True)
-
+    
     companias = ["BCI", "ZENIT"]
 
     for compania in companias:
         print(f"\n--- Procesando compañía: {compania.upper()} ---", flush=True)
         if asegurar_contexto(driver, compania):
-            # Navegación a Gestión de siniestros
-            print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
-            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
-            esperar_pagina_cargada(driver)
-            submenu_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div#item-1.show")))
-            submenu_container.find_element(By.XPATH, ".//a[contains(., 'Gestión de siniestros')]" ).click()
-            esperar_pagina_cargada(driver)
             yield from sondear_siniestros_asignados(driver, compania)
             yield from sondear_siniestros_liquidacion(driver, compania)
         else:
