@@ -800,11 +800,24 @@ def sondear_siniestros_liquidacion(driver, compania):
             except Exception as e:
                 print(f"DEBUG: Error al inspeccionar pestañas: {e}", flush=True)
 
+        # DEBUG: Inspeccionar todas las pestañas con data-toggle="tab" en toda la página
+        try:
+            all_tabs = driver.find_elements(By.XPATH, "//a[@data-toggle='tab']")
+            print("DEBUG: Pestañas con data-toggle='tab' en toda la página:", flush=True)
+            for tab in all_tabs:
+                text = tab.text.strip()
+                visible = tab.is_displayed()
+                enabled = tab.is_enabled()
+                data_toggle = tab.get_attribute("data-toggle")
+                print(f"  - Texto: '{text}' | data-toggle: '{data_toggle}' | Visible: {visible} | Enabled: {enabled}", flush=True)
+        except Exception as e:
+            print(f"DEBUG: Error al inspeccionar pestañas data-toggle: {e}", flush=True)
+
         # Verificar si la pestaña 'Análisis de Liquidación' ya está activa
         tab_active = False
         try:
-            # Usar XPath con translate para manejar acentos y hacer búsqueda más robusta
-            analisis_tab = driver.find_element(By.XPATH, "//a[contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]")
+            # Usar XPath con data-toggle="tab" para buscar en toda la página, no solo en submenu
+            analisis_tab = driver.find_element(By.XPATH, "//a[@data-toggle='tab' and contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]")
             if analisis_tab.is_displayed():
                 class_attr = analisis_tab.get_attribute("class")
                 if "active" in class_attr or "mat-tab-label-active" in class_attr:
@@ -821,7 +834,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         # Solo navegar directamente a la pestaña si no está activa
         if not tab_active:
             print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]" ))).click()
+            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[@data-toggle='tab' and contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]" ))).click()
             esperar_pagina_cargada(driver)
         else:
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
