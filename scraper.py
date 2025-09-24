@@ -816,25 +816,28 @@ def sondear_siniestros_liquidacion(driver, compania):
         # Verificar si la pestaña 'Análisis de Liquidación' ya está activa
         tab_active = False
         try:
-            # Usar XPath con data-toggle="tab" para buscar en toda la página, no solo en submenu
-            analisis_tab = driver.find_element(By.XPATH, "//a[@data-toggle='tab' and contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]")
-            if analisis_tab.is_displayed():
-                class_attr = analisis_tab.get_attribute("class")
-                if "active" in class_attr or "mat-tab-label-active" in class_attr:
-                    tab_active = True
-                    print("DEBUG: Pestaña 'Análisis de Liquidación' ya está activa.", flush=True)
-                else:
-                    print("DEBUG: Pestaña 'Análisis de Liquidación' está visible pero no activa.", flush=True)
-            else:
-                print("DEBUG: Pestaña 'Análisis de Liquidación' no está visible.", flush=True)
+            # Verificar si hay una pestaña activa con el texto
+            active_tab = driver.find_element(By.XPATH, "//a[contains(@class, 'nav-link active') and contains(text(), 'Analisis de Liquidación')]")
+            print(f"DEBUG: Pestaña activa encontrada: texto='{active_tab.text}', visible={active_tab.is_displayed()}, enabled={active_tab.is_enabled()}", flush=True)
+            tab_active = True
+            print("DEBUG: Pestaña 'Análisis de Liquidación' ya está activa.", flush=True)
         except NoSuchElementException:
-            print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
+            print("DEBUG: Pestaña 'Análisis de Liquidación' no está activa.", flush=True)
+            # Verificar si existe la pestaña (no necesariamente activa)
+            try:
+                analisis_tab = driver.find_element(By.XPATH, "//a[@data-toggle='tab' and contains(text(), 'Analisis de Liquidación')]")
+                print(f"DEBUG: Pestaña encontrada (no activa): texto='{analisis_tab.text}', visible={analisis_tab.is_displayed()}, enabled={analisis_tab.is_enabled()}", flush=True)
+            except NoSuchElementException:
+                print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
 
         # Asumir que ya estamos en "Gestión de siniestros" desde sondear_siniestros_asignados
         # Solo navegar directamente a la pestaña si no está activa
         if not tab_active:
             print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[@data-toggle='tab' and contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]" ))).click()
+            analisis_click_element = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[@data-toggle='tab' and contains(text(), 'Analisis de Liquidación')]" )))
+            print(f"DEBUG: Elemento clickeable encontrado: texto='{analisis_click_element.text}', visible={analisis_click_element.is_displayed()}, enabled={analisis_click_element.is_enabled()}", flush=True)
+            analisis_click_element.click()
+            print("DEBUG: Clic realizado en 'Análisis de Liquidación'.", flush=True)
             esperar_pagina_cargada(driver)
         else:
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
