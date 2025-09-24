@@ -804,7 +804,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         tab_active = False
         try:
             # Usar XPath con translate para manejar acentos y hacer búsqueda más robusta
-            analisis_tab = driver.find_element(By.XPATH, "//a[contains(translate(text(), 'ÁÉÍÓÚ', 'AEIOU'), 'ANALISIS DE LIQUIDACION')]")
+            analisis_tab = driver.find_element(By.XPATH, "//a[contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]")
             if analisis_tab.is_displayed():
                 class_attr = analisis_tab.get_attribute("class")
                 if "active" in class_attr or "mat-tab-label-active" in class_attr:
@@ -821,7 +821,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         # Solo navegar directamente a la pestaña si no está activa
         if not tab_active:
             print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(translate(text(), 'ÁÉÍÓÚ', 'AEIOU'), 'ANALISIS DE LIQUIDACION')]" ))).click()
+            WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(translate(text(), 'áéíóúÁÉÍÓÚabcdefghijklmnopqrstuvwxyz', 'aeiouAEIOUABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'ANALISIS DE LIQUIDACION')]" ))).click()
             esperar_pagina_cargada(driver)
         else:
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
