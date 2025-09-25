@@ -899,110 +899,79 @@ def sondear_siniestros_liquidacion(driver, compania):
             pass
             # print(f"DEBUG: Error al inspeccionar elementos con data-toggle: {e}", flush=True)
 
-        # Find and click download button
-        # DEBUG: Inspect all buttons matching the current selector before WebDriverWait
-        # print("DEBUG: Inspeccionando todos los botones que coinciden con el selector actual antes de WebDriverWait...", flush=True)
-        try:
-            all_matching_buttons = driver.find_elements(By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]")
-            # print(f"DEBUG: Encontrados {len(all_matching_buttons)} botones que coinciden con el selector:", flush=True)
-            for i, btn in enumerate(all_matching_buttons):
-                try:
-                    img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
-                    # print(f"  Botón {i+1}: src='{img_src}', class='{btn.get_attribute('class')}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
-                except Exception as e:
-                    pass
-                    # print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
-        except Exception as e:
-            pass
-            # print(f"DEBUG: Error al inspeccionar botones coincidentes: {e}", flush=True)
+        page_num = 1
+        while True:
+            print(f"\nRecolectando datos de tabla en página {page_num}...", flush=True)
+            row_selector = "//tr[contains(@class, 'mat-row') and .//td[contains(@class, 'mat-column-NumeroSiniestro')]]"
+            try:
+                WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
+                rows = driver.find_elements(By.XPATH, row_selector)
+                print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
 
-        # DEBUG: Inspect buttons with images before attempting to find download button
-        # print("DEBUG: Inspeccionando botones con imágenes antes de buscar el botón de descarga...", flush=True)
-        try:
-            all_buttons_with_img = driver.find_elements(By.XPATH, "//button[.//img]")
-            # print(f"DEBUG: Encontrados {len(all_buttons_with_img)} botones con img:", flush=True)
-            for i, btn in enumerate(all_buttons_with_img):
-                try:
-                    img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
-                    # print(f"  Botón {i+1}: src='{img_src}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
-                except Exception as e:
-                    pass
-                    # print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
-        except Exception as e:
-            pass
-            # print(f"DEBUG: Error al inspeccionar botones con img: {e}", flush=True)
+                # Extraer todos los datos de cada fila
+                for row in rows:
+                    NumeroSiniestro = row.find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text.strip()
+                    if NumeroSiniestro:
+                        row_data = {
+                            'Compania': compania,
+                            'FechaAsignacion': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaAsignacion").text,
+                            'NumeroSiniestro': NumeroSiniestro,
+                            'EstadoContacto': row.find_element(By.CSS_SELECTOR, "td.mat-column-EstadoContacto").text,
+                            'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
+                            'NombreAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-NombreAsegurado").text,
+                            'RutAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-RutAsegurado").text,
+                            'CorreoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-EmailAsegurado").text,
+                            'TelefonoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-TelefonoAsegurado").text,
+                            'Marca': row.find_element(By.CSS_SELECTOR, "td.mat-column-Marca").text,
+                            'Modelo': row.find_element(By.CSS_SELECTOR, "td.mat-column-Modelo").text,
+                            'TipoDanio': row.find_element(By.CSS_SELECTOR, "td.mat-column-TipoDanio").text,
+                            'FechaEstimadaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaEstimadaIngreso").text
+                        }
+                        yield row_data
+                
+                print(f"Datos de {len(rows)} filas guardados.", flush=True)
 
-        # DEBUG: Inspect all buttons containing text related to download
-        try:
-            all_download_buttons = driver.find_elements(By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]")
-            # print(f"DEBUG: Encontrados {len(all_download_buttons)} botones con texto de descarga:", flush=True)
-            for i, btn in enumerate(all_download_buttons):
-                pass
-                # print(f"  Botón {i+1}: text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
-        except Exception as e:
-            pass
-            # print(f"DEBUG: Error al inspeccionar botones de descarga por texto: {e}", flush=True)
-
-        print("DEBUG: Intentando encontrar el botón de descarga con el selector actualizado...", flush=True)
-        try:
-            download_button = driver.find_element(By.XPATH, "//*[contains(@class, 'floating-icon')]")
-            print("DEBUG: Intentando clic JS en botón de descarga...")
-            driver.execute_script("arguments[0].click();", download_button)
-            print("DEBUG: Clic JS ejecutado exitosamente")
-        except Exception as e:
-            print(f"Error al hacer clic en el botón de descarga: {e}")
-        
-        # Wait for download
-        download_dir = "/tmp/downloads"
-        timeout = 60
-        start_time = time.time()
-        file_path = "/tmp/downloads/siniestros_liquidacion.xlsx"
-        while time.time() - start_time < timeout:
-            files = os.listdir(download_dir)
-            for file in files:
-                if file.endswith('.xlsx') or file.endswith('.xls'):
-                    file_path = os.path.join(download_dir, file)
-                    break
-            if file_path:
+            except TimeoutException:
+                print("No se encontraron más filas de 'Liquidación' en esta página. Finalizando recolección.", flush=True)
                 break
-            time.sleep(10)
-            print("DEBUG: Archivos en /tmp/downloads después de la descarga:", os.listdir("/tmp/downloads") if os.path.exists("/tmp/downloads") else "Directorio no existe")
-        
-        if not file_path:
-            print("No se pudo descargar el archivo Excel.")
-            return
-        
-        # Process Excel
-        df = pd.read_excel(file_path)
-        print("DEBUG: Columnas del Excel:", df.columns.tolist())
-        print("DEBUG: Primeras filas del Excel:", df.head())
-        df = df[df['N° SINIESTRO'].notna() & (df['N° SINIESTRO'].astype(str).str.strip() != '')]
 
-        # Map columns to consistent structure
-        column_mapping = {
-            'FechaAsignacion': 'FechaAsignacion',
-            'NumeroSiniestro': 'N° SINIESTRO',
-            'EstadoContacto': 'EstadoContacto',
-            'Patente': 'Patente',
-            'NombreAsegurado': 'NombreAsegurado',
-            'RutAsegurado': 'RUT ASEGURADO',
-            'CorreoAsegurado': 'CorreoAsegurado',
-            'TelefonoAsegurado': 'TelefonoAsegurado',
-            'Marca': 'MARCA',
-            'Modelo': 'MODELO',
-            'TipoDanio': 'TIPO DAÑO',
-            'FechaEstimadaIngreso': 'FECHA INGRESO'
-        }
-        
-        for index, row in df.iterrows():
-            row_data = {'Compania': compania}
-            for key, col in column_mapping.items():
-                row_data[key] = row.get(col, '')
-            yield row_data
-        
-        # Clean up
-        os.remove(file_path)
-        print("DEBUG: Archivos en /tmp/downloads antes de la descarga:", os.listdir("/tmp/downloads") if os.path.exists("/tmp/downloads") else "Directorio no existe")
+            # Paginación
+            try:
+                # Store the first row's unique identifier before attempting to paginate
+                first_row_id_before_pagination = None
+                if rows: # Check if there are rows on the current page
+                    try:
+                        first_row_id_before_pagination = rows[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                    except NoSuchElementException:
+                        print("WARN: Could not get first row ID for pagination check.", flush=True)
+
+                next_button_selector = "button.mat-paginator-navigation-next:not([disabled])"
+                next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
+                driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
+                time.sleep(1)
+                driver.execute_script("arguments[0].click();", next_button)
+                esperar_pagina_cargada(driver)
+                page_num += 1
+
+                # After clicking next, re-evaluate rows on the new page
+                WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
+                rows_after_pagination = driver.find_elements(By.XPATH, row_selector)
+
+                # Check if the content has changed (i.e., we moved to a new page) and if the number of rows is 0
+                if first_row_id_before_pagination and rows_after_pagination:
+                    first_row_id_after_pagination = rows_after_pagination[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                    if first_row_id_before_pagination == first_row_id_after_pagination:
+                        print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
+                        break # Break if we are stuck on the same page content
+                elif not rows_after_pagination: # If no rows are found on the new page, it's the end
+                    print("No se encontraron filas en la nueva página. Fin de la recolección.", flush=True)
+                    break
+
+            except (NoSuchElementException, TimeoutException):
+                print("No hay más páginas o el botón de siguiente está deshabilitado. Fin de la recolección.", flush=True)
+                break
+            
+            gc.collect()
         
     except Exception as e:
         print(f"Error en sondear_siniestros_liquidacion: {e}")
