@@ -945,7 +945,7 @@ def sondear_siniestros_liquidacion(driver, compania):
 
         print("DEBUG: Intentando encontrar el botón de descarga con el selector actualizado...", flush=True)
         try:
-            download_button = driver.find_element(By.XPATH, "//button[contains(@class, 'floating-icon')]")
+            download_button = driver.find_element(By.XPATH, "//*[contains(@class, 'floating-icon')]")
             print("DEBUG: Intentando clic JS en botón de descarga...")
             driver.execute_script("arguments[0].click();", download_button)
             print("DEBUG: Clic JS ejecutado exitosamente")
