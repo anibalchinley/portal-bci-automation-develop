@@ -914,7 +914,7 @@ def sondear_siniestros_liquidacion(driver, compania):
                     if NumeroSiniestro:
                         row_data = {
                             'Compania': compania,
-                            'FechaAsignacion': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaAsignacion").text,
+                            'FechaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaIngreso").text,
                             'NumeroSiniestro': NumeroSiniestro,
                             'EstadoContacto': row.find_element(By.CSS_SELECTOR, "td.mat-column-EstadoContacto").text,
                             'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
