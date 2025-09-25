@@ -771,11 +771,9 @@ def sondear_siniestros_liquidacion(driver, compania):
     """
     print(f"\n--- Iniciando sondeo de Siniestros Liquidación para {compania.upper()} ---", flush=True)
 
+    # Verificar estado actual antes de navegación
+    current_url = driver.current_url
     try:
-        # Verificar estado actual antes de navegación
-        print("DEBUG: Verificando estado actual de la página...", flush=True)
-        current_url = driver.current_url
-        print(f"DEBUG: URL actual: {current_url}", flush=True)
 
         # Verificar si el submenu está visible
         submenu_visible = False
@@ -784,51 +782,54 @@ def sondear_siniestros_liquidacion(driver, compania):
             submenu_container = driver.find_element(By.CSS_SELECTOR, "div#item-1.show")
             if submenu_container.is_displayed():
                 submenu_visible = True
-                print("DEBUG: Submenu 'div#item-1.show' ya está visible.", flush=True)
-            else:
-                print("DEBUG: Submenu 'div#item-1.show' no está visible.", flush=True)
+                # print("DEBUG: Submenu 'div#item-1.show' ya está visible.", flush=True)
         except NoSuchElementException:
-            print("DEBUG: Submenu 'div#item-1.show' no encontrado.", flush=True)
+            pass
+            # print("DEBUG: Submenu 'div#item-1.show' no encontrado.", flush=True)
 
         # DEBUG: Inspeccionar pestañas disponibles en el submenu
         if submenu_container and submenu_visible:
             try:
                 tabs = submenu_container.find_elements(By.TAG_NAME, "a")
-                print("DEBUG: Pestañas disponibles en el submenu:", flush=True)
+                # print("DEBUG: Pestañas disponibles en el submenu:", flush=True)
                 for tab in tabs:
-                    print(f"  - Texto: '{tab.text}' | Visible: {tab.is_displayed()} | Enabled: {tab.is_enabled()}", flush=True)
+                    pass
+                    # print(f"  - Texto: '{tab.text}' | Visible: {tab.is_displayed()} | Enabled: {tab.is_enabled()}", flush=True)
             except Exception as e:
-                print(f"DEBUG: Error al inspeccionar pestañas: {e}", flush=True)
+                pass
+                # print(f"DEBUG: Error al inspeccionar pestañas: {e}", flush=True)
 
         # DEBUG: Inspeccionar todas las pestañas con data-toggle="tab" en toda la página
         try:
             all_tabs = driver.find_elements(By.XPATH, "//a[@data-toggle='tab']")
-            print("DEBUG: Pestañas con data-toggle='tab' en toda la página:", flush=True)
+            # print("DEBUG: Pestañas con data-toggle='tab' en toda la página:", flush=True)
             for tab in all_tabs:
                 text = tab.text.strip()
                 visible = tab.is_displayed()
                 enabled = tab.is_enabled()
                 data_toggle = tab.get_attribute("data-toggle")
-                print(f"  - Texto: '{text}' | data-toggle: '{data_toggle}' | Visible: {visible} | Enabled: {enabled}", flush=True)
+                # print(f"  - Texto: '{text}' | data-toggle: '{data-toggle}' | Visible: {visible} | Enabled: {enabled}", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar pestañas data-toggle: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar pestañas data-toggle: {e}", flush=True)
 
         # Verificar si la pestaña 'Análisis de Liquidación' ya está activa
         tab_active = False
         try:
             # Verificar si hay una pestaña activa con el texto
             active_tab = driver.find_element(By.XPATH, "//a[contains(@class, 'nav-link active') and contains(text(), 'Analisis de Liquidación')]")
-            print(f"DEBUG: Pestaña activa encontrada: texto='{active_tab.text}', visible={active_tab.is_displayed()}, enabled={active_tab.is_enabled()}", flush=True)
+            # print(f"DEBUG: Pestaña activa encontrada: texto='{active_tab.text}', visible={active_tab.is_displayed()}, enabled={active_tab.is_enabled()}", flush=True)
             tab_active = True
-            print("DEBUG: Pestaña 'Análisis de Liquidación' ya está activa.", flush=True)
+            # print("DEBUG: Pestaña 'Análisis de Liquidación' ya está activa.", flush=True)
         except NoSuchElementException:
-            print("DEBUG: Pestaña 'Análisis de Liquidación' no está activa.", flush=True)
+            # print("DEBUG: Pestaña 'Análisis de Liquidación' no está activa.", flush=True)
             # Verificar si existe la pestaña (no necesariamente activa)
             try:
                 analisis_tab = driver.find_element(By.XPATH, "//a[@data-toggle='tab' and contains(text(), 'Analisis de Liquidación')]")
-                print(f"DEBUG: Pestaña encontrada (no activa): texto='{analisis_tab.text}', visible={analisis_tab.is_displayed()}, enabled={analisis_tab.is_enabled()}", flush=True)
+                # print(f"DEBUG: Pestaña encontrada (no activa): texto='{analisis_tab.text}', visible={analisis_tab.is_displayed()}, enabled={analisis_tab.is_enabled()}", flush=True)
             except NoSuchElementException:
-                print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
+                pass
+                # print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
 
         # Asumir que ya estamos en "Gestión de siniestros" desde sondear_siniestros_asignados
         # Solo navegar directamente a la pestaña si no está activa
@@ -843,94 +844,103 @@ def sondear_siniestros_liquidacion(driver, compania):
             print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
 
         # DEBUG: Inspeccionar todos los botones disponibles en la página
-        print("DEBUG: Inspeccionando todos los botones en la página...", flush=True)
+        # print("DEBUG: Inspeccionando todos los botones en la página...", flush=True)
         try:
             all_buttons = driver.find_elements(By.TAG_NAME, "button")
-            print(f"DEBUG: Encontrados {len(all_buttons)} botones en total:", flush=True)
+            # print(f"DEBUG: Encontrados {len(all_buttons)} botones en total:", flush=True)
             for i, btn in enumerate(all_buttons):
                 text = btn.text.strip()
                 visible = btn.is_displayed()
                 enabled = btn.is_enabled()
                 attributes = {attr: btn.get_attribute(attr) for attr in ['id', 'class', 'type', 'data-toggle', 'aria-label'] if btn.get_attribute(attr)}
-                print(f"  Botón {i+1}: text='{text}', visible={visible}, enabled={enabled}, attributes={attributes}", flush=True)
+                # print(f"  Botón {i+1}: text='{text}', visible={visible}, enabled={enabled}, attributes={attributes}", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar botones: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar botones: {e}", flush=True)
 
         # DEBUG: Inspeccionar todas las imágenes con src que contengan 'excel' o 'download'
-        print("DEBUG: Inspeccionando imágenes con src relacionado con Excel o descarga...", flush=True)
+        # print("DEBUG: Inspeccionando imágenes con src relacionado con Excel o descarga...", flush=True)
         try:
             all_images = driver.find_elements(By.TAG_NAME, "img")
             relevant_images = [img for img in all_images if img.get_attribute("src") and ('excel' in img.get_attribute("src").lower() or 'download' in img.get_attribute("src").lower())]
-            print(f"DEBUG: Encontradas {len(relevant_images)} imágenes relevantes:", flush=True)
+            # print(f"DEBUG: Encontradas {len(relevant_images)} imágenes relevantes:", flush=True)
             for i, img in enumerate(relevant_images):
                 src = img.get_attribute("src")
                 alt = img.get_attribute("alt") or ""
-                print(f"  Imagen {i+1}: src='{src}', alt='{alt}'", flush=True)
+                # print(f"  Imagen {i+1}: src='{src}', alt='{alt}'", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar imágenes: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar imágenes: {e}", flush=True)
 
         # DEBUG: Verificar elementos con data-toggle u otros atributos relacionados con descarga
-        print("DEBUG: Inspeccionando elementos con data-toggle o atributos de descarga...", flush=True)
+        # print("DEBUG: Inspeccionando elementos con data-toggle o atributos de descarga...", flush=True)
         try:
             elements_with_data_toggle = driver.find_elements(By.XPATH, "//*[@data-toggle]")
-            print(f"DEBUG: Encontrados {len(elements_with_data_toggle)} elementos con data-toggle:", flush=True)
+            # print(f"DEBUG: Encontrados {len(elements_with_data_toggle)} elementos con data-toggle:", flush=True)
             for i, elem in enumerate(elements_with_data_toggle):
                 tag = elem.tag_name
                 data_toggle = elem.get_attribute("data-toggle")
                 text = elem.text.strip()
                 visible = elem.is_displayed()
                 enabled = elem.is_enabled() if tag in ['button', 'input', 'a'] else 'N/A'
-                print(f"  Elemento {i+1}: tag='{tag}', data-toggle='{data_toggle}', text='{text}', visible={visible}, enabled={enabled}", flush=True)
+                # print(f"  Elemento {i+1}: tag='{tag}', data-toggle='{data_toggle}', text='{text}', visible={visible}, enabled={enabled}", flush=True)
 
             # Otros atributos relacionados con descarga
             download_related = driver.find_elements(By.XPATH, "//*[@download or @href[contains(., 'excel') or @href[contains(., 'download')]]")
-            print(f"DEBUG: Encontrados {len(download_related)} elementos con atributos de descarga:", flush=True)
+            # print(f"DEBUG: Encontrados {len(download_related)} elementos con atributos de descarga:", flush=True)
             for i, elem in enumerate(download_related):
                 tag = elem.tag_name
                 href = elem.get_attribute("href") or ""
                 download = elem.get_attribute("download") or ""
                 text = elem.text.strip()
-                print(f"  Elemento {i+1}: tag='{tag}', href='{href}', download='{download}', text='{text}'", flush=True)
+                # print(f"  Elemento {i+1}: tag='{tag}', href='{href}', download='{download}', text='{text}'", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar elementos con data-toggle: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar elementos con data-toggle: {e}", flush=True)
 
         # Find and click download button
         # DEBUG: Inspect all buttons matching the current selector before WebDriverWait
-        print("DEBUG: Inspeccionando todos los botones que coinciden con el selector actual antes de WebDriverWait...", flush=True)
+        # print("DEBUG: Inspeccionando todos los botones que coinciden con el selector actual antes de WebDriverWait...", flush=True)
         try:
             all_matching_buttons = driver.find_elements(By.XPATH, "//button[.//img[contains(@src, 'excel-icon')]]")
-            print(f"DEBUG: Encontrados {len(all_matching_buttons)} botones que coinciden con el selector:", flush=True)
+            # print(f"DEBUG: Encontrados {len(all_matching_buttons)} botones que coinciden con el selector:", flush=True)
             for i, btn in enumerate(all_matching_buttons):
                 try:
                     img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
-                    print(f"  Botón {i+1}: src='{img_src}', class='{btn.get_attribute('class')}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+                    # print(f"  Botón {i+1}: src='{img_src}', class='{btn.get_attribute('class')}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
                 except Exception as e:
-                    print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
+                    pass
+                    # print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar botones coincidentes: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar botones coincidentes: {e}", flush=True)
 
         # DEBUG: Inspect buttons with images before attempting to find download button
-        print("DEBUG: Inspeccionando botones con imágenes antes de buscar el botón de descarga...", flush=True)
+        # print("DEBUG: Inspeccionando botones con imágenes antes de buscar el botón de descarga...", flush=True)
         try:
             all_buttons_with_img = driver.find_elements(By.XPATH, "//button[.//img]")
-            print(f"DEBUG: Encontrados {len(all_buttons_with_img)} botones con img:", flush=True)
+            # print(f"DEBUG: Encontrados {len(all_buttons_with_img)} botones con img:", flush=True)
             for i, btn in enumerate(all_buttons_with_img):
                 try:
                     img_src = btn.find_element(By.XPATH, ".//img").get_attribute("src")
-                    print(f"  Botón {i+1}: src='{img_src}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+                    # print(f"  Botón {i+1}: src='{img_src}', text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
                 except Exception as e:
-                    print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
+                    pass
+                    # print(f"  Botón {i+1}: Error al obtener atributos - {e}", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar botones con img: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar botones con img: {e}", flush=True)
 
         # DEBUG: Inspect all buttons containing text related to download
         try:
             all_download_buttons = driver.find_elements(By.XPATH, "//button[contains(., 'Descargar') or contains(., 'Exportar') or contains(., 'Excel')]")
-            print(f"DEBUG: Encontrados {len(all_download_buttons)} botones con texto de descarga:", flush=True)
+            # print(f"DEBUG: Encontrados {len(all_download_buttons)} botones con texto de descarga:", flush=True)
             for i, btn in enumerate(all_download_buttons):
-                print(f"  Botón {i+1}: text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
+                pass
+                # print(f"  Botón {i+1}: text='{btn.text}', visible={btn.is_displayed()}, enabled={btn.is_enabled()}", flush=True)
         except Exception as e:
-            print(f"DEBUG: Error al inspeccionar botones de descarga por texto: {e}", flush=True)
+            pass
+            # print(f"DEBUG: Error al inspeccionar botones de descarga por texto: {e}", flush=True)
 
         print("DEBUG: Intentando encontrar el botón de descarga con el selector actualizado...", flush=True)
         try:
@@ -964,7 +974,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         df = pd.read_excel(file_path)
         print("DEBUG: Columnas del Excel:", df.columns.tolist())
         print("DEBUG: Primeras filas del Excel:", df.head())
-        df = df[df['NumeroSiniestro'].notna() & (df['NumeroSiniestro'] != '')]
+        df = df[df['N° SINIESTRO'].notna() & (df['N° SINIESTRO'] != '')]
 
         # Map columns to consistent structure
         column_mapping = {
