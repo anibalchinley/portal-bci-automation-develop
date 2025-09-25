@@ -962,7 +962,10 @@ def sondear_siniestros_liquidacion(driver, compania):
         
         # Process Excel
         df = pd.read_excel(file_path)
-        
+        print("DEBUG: Columnas del Excel:", df.columns.tolist())
+        print("DEBUG: Primeras filas del Excel:", df.head())
+        df = df[df['NumeroSiniestro'].notna() & (df['NumeroSiniestro'] != '')]
+
         # Map columns to consistent structure
         column_mapping = {
             'FechaAsignacion': 'FechaAsignacion',
