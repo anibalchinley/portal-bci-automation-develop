@@ -962,7 +962,12 @@ def sondear_siniestros_liquidacion(driver, compania):
         time.sleep(1)  # Pausa para que el scroll se complete
         print("DEBUG: Scroll realizado al botón de descarga.", flush=True)
 
-        download_button.click()
+        print("Intentando clic JS en botón de descarga...")
+        try:
+            driver.execute_script("arguments[0].click();", download_button)
+            print("Clic JS ejecutado exitosamente")
+        except Exception as e:
+            print(f"Error al ejecutar clic JS: {e}")
         
         # Wait for download
         download_dir = "/tmp/downloads"
