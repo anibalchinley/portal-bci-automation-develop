@@ -965,7 +965,8 @@ def sondear_siniestros_liquidacion(driver, compania):
                     break
             if file_path:
                 break
-            time.sleep(1)
+            time.sleep(10)
+            print("DEBUG: Archivos en /tmp/downloads después de la descarga:", os.listdir("/tmp/downloads") if os.path.exists("/tmp/downloads") else "Directorio no existe")
         
         if not file_path:
             print("No se pudo descargar el archivo Excel.")
@@ -1001,6 +1002,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         
         # Clean up
         os.remove(file_path)
+        print("DEBUG: Archivos en /tmp/downloads antes de la descarga:", os.listdir("/tmp/downloads") if os.path.exists("/tmp/downloads") else "Directorio no existe")
         
     except Exception as e:
         print(f"Error en sondear_siniestros_liquidacion: {e}")
