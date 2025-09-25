@@ -674,6 +674,7 @@ def sondear_siniestros_asignados(driver, compania):
     Orquesta el proceso de scraping en la pestaña 'Asignados'.
     v4.5: Añade el parámetro compania para etiquetar los datos.
     """
+    file_path = "/tmp/downloads/siniestros_asignados.xlsx"
     print(f"\n--- Iniciando sondeo de Siniestros Asignados para {compania.upper()} ---", flush=True)
     
     try:
@@ -955,7 +956,7 @@ def sondear_siniestros_liquidacion(driver, compania):
         download_dir = "/tmp/downloads"
         timeout = 60
         start_time = time.time()
-        file_path = None
+        file_path = "/tmp/downloads/siniestros_liquidacion.xlsx"
         while time.time() - start_time < timeout:
             files = os.listdir(download_dir)
             for file in files:
@@ -1014,14 +1015,22 @@ def scrape_full_data(driver):
     Orquesta el proceso completo de scraping para todas las compañías definidas.
     """
     print("--- Iniciando proceso de scraping completo ---", flush=True)
-    
+
     companias = ["BCI", "ZENIT"]
+    all_data = []
 
     for compania in companias:
         print(f"\n--- Procesando compañía: {compania.upper()} ---", flush=True)
         if asegurar_contexto(driver, compania):
-            yield from sondear_siniestros_asignados(driver, compania)
-            yield from sondear_siniestros_liquidacion(driver, compania)
+            data = list(sondear_siniestros_asignados(driver, compania))
+            all_data.extend(data)
+            data = list(sondear_siniestros_liquidacion(driver, compania))
+            all_data.extend(data)
         else:
             print(f"ADVERTENCIA: No se pudo asegurar el contexto para {compania.upper()}. Saltando esta compañía.", flush=True)
             take_screenshot(driver, f"error_contexto_{compania.lower()}.png")
+
+    all_data = list({item['NumeroSiniestro']: item for item in all_data}.values())
+
+    for item in all_data:
+        yield item
