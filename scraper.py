@@ -972,25 +972,24 @@ def sondear_siniestros_liquidacion(driver, compania):
         
         # Process Excel
         df = pd.read_excel(file_path)
-        df.rename(columns={'N° SINIESTRO': 'NumeroSiniestro'}, inplace=True)
         print("DEBUG: Columnas del Excel:", df.columns.tolist())
         print("DEBUG: Primeras filas del Excel:", df.head())
-        df = df[df['NumeroSiniestro'].notna() & (df['NumeroSiniestro'].astype(str).str.strip() != '')]
+        df = df[df['N° SINIESTRO'].notna() & (df['N° SINIESTRO'].astype(str).str.strip() != '')]
 
         # Map columns to consistent structure
         column_mapping = {
             'FechaAsignacion': 'FechaAsignacion',
-            'NumeroSiniestro': 'NumeroSiniestro',
+            'NumeroSiniestro': 'N° SINIESTRO',
             'EstadoContacto': 'EstadoContacto',
             'Patente': 'Patente',
             'NombreAsegurado': 'NombreAsegurado',
-            'RutAsegurado': 'RutAsegurado',
+            'RutAsegurado': 'RUT ASEGURADO',
             'CorreoAsegurado': 'CorreoAsegurado',
             'TelefonoAsegurado': 'TelefonoAsegurado',
-            'Marca': 'Marca',
-            'Modelo': 'Modelo',
-            'TipoDanio': 'TipoDanio',
-            'FechaEstimadaIngreso': 'FechaEstimadaIngreso'
+            'Marca': 'MARCA',
+            'Modelo': 'MODELO',
+            'TipoDanio': 'TIPO DAÑO',
+            'FechaEstimadaIngreso': 'FECHA INGRESO'
         }
         
         for index, row in df.iterrows():
