@@ -916,16 +916,11 @@ def sondear_siniestros_liquidacion(driver, compania):
                             'Compania': compania,
                             'FechaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaIngreso").text,
                             'NumeroSiniestro': NumeroSiniestro,
-                            'EstadoContacto': row.find_element(By.CSS_SELECTOR, "td.mat-column-EstadoContacto").text,
                             'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
-                            'NombreAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-NombreAsegurado").text,
                             'RutAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-RutAsegurado").text,
-                            'CorreoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-EmailAsegurado").text,
-                            'TelefonoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-TelefonoAsegurado").text,
                             'Marca': row.find_element(By.CSS_SELECTOR, "td.mat-column-Marca").text,
                             'Modelo': row.find_element(By.CSS_SELECTOR, "td.mat-column-Modelo").text,
                             'TipoDanio': row.find_element(By.CSS_SELECTOR, "td.mat-column-TipoDanio").text,
-                            'FechaEstimadaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaEstimadaIngreso").text
                         }
                         yield row_data
                 
