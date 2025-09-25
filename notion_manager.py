@@ -174,7 +174,7 @@ class NotionManager:
                     siniestro_properties = {
                         "Siniestro": {"title": [{"text": {"content": f"{siniestro.get('NumeroSiniestro')} 🤖"}}]}, # Title + Emoji
                         "CÍA": {"select": {"name": siniestro.get('Compania')}},
-                        "Agend./Status": {"select": {"name": siniestro.get('Status', 'ASIGNADO')}} # Select
+                        "Agend./Status": {"select": {"name": siniestro.get('Status', 'ANALISIS LIQUIDACION')}} # Select
                     }
 
                     # Añadir la propiedad de Tipo de Daño solo si no está vacía
