@@ -6,6 +6,11 @@ from datetime import datetime
 from zoneinfo import ZoneInfo # Importar ZoneInfo para manejo de zonas horarias
 from dotenv import load_dotenv
 
+LIQUIDACION_FIELDS = [
+    'TipoSeccion', 'FechaIngreso', 'MotivoRechazo', 
+    'VehiculoInmovilizadoIngreso', 'FechaRechazo'
+]
+
 class NotionManager:
     def __init__(self, notion_token, db_ids):
         self.notion_token = notion_token
@@ -174,7 +179,7 @@ class NotionManager:
                     siniestro_properties = {
                         "Siniestro": {"title": [{"text": {"content": f"{siniestro.get('NumeroSiniestro')} 🤖"}}]}, # Title + Emoji
                         "CÍA": {"select": {"name": siniestro.get('Compania')}},
-                        "Agend./Status": {"select": {"name": siniestro.get('Status', 'ANALISIS LIQUIDACION')}} # Select
+                        "Agend./Status": {"select": {"name": "Análisis de Liquidación" if siniestro.get('TipoSeccion') == 'Liquidacion' else (siniestro.get('EstadoContacto') or 'Sin Estado')}} # Select
                     }
 
                     # Añadir la propiedad de Tipo de Daño solo si no está vacía
