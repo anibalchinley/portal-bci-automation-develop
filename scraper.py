@@ -222,8 +222,9 @@ def login_to_bci(driver, user, password, api_key_2captcha):
 
             print("Iniciando lógica para reCAPTCHA v3...", flush=True)
             page_source = driver.page_source
-            
+
             match = re.search(r'https://www.google.com/recaptcha/api.js\?render=([^&]+)', page_source)
+            sitekey = match.group(1) if match else None
 
             if sitekey:
                 print(f"Sitekey de reCAPTCHA v3 encontrado: {sitekey}", flush=True)
