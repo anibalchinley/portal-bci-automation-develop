@@ -283,8 +283,19 @@ def login_to_bci(driver, user, password, api_key_2captcha):
             print("DEBUG: Clic en botón de login realizado.", flush=True)
             
             print("Esperando redirección a 'busqueda-avanzada'...", flush=True)
-            WebDriverWait(driver, 15).until(EC.url_contains('busqueda-avanzada'))
+            WebDriverWait(driver, 30).until(EC.url_contains('busqueda-avanzada'))
             print(f"Login exitoso. Nueva URL: {driver.current_url}", flush=True)
+
+            # Manejar popup post-login
+            print("Esperando y cerrando popup post-login...", flush=True)
+            try:
+                popup_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".bs-dynamic-dialog-footer button.bs-btn.bs-btn-primary"))
+                )
+                popup_button.click()
+                print("Popup post-login cerrado.", flush=True)
+            except TimeoutException:
+                print("No se encontró popup post-login.", flush=True)
             
             # Verificar que la sesión esté realmente activa
             try:
