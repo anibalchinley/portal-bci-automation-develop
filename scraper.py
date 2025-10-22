@@ -209,7 +209,7 @@ def login_to_bci(driver, user, password, api_key_2captcha):
             
             user_selector = 'input[formcontrolname="username"]';
             pass_selector = 'input[formcontrolname="password"]';
-            button_selector = 'button.boton.bg-azul';
+            button_selector = 'button.bs-btn.bs-btn-primary.btn-mobile-center.w-100';
             
             print("Esperando a que los campos de usuario y contraseña sean visibles.", flush=True)
             email_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, user_selector)))
@@ -224,60 +224,57 @@ def login_to_bci(driver, user, password, api_key_2captcha):
             page_source = driver.page_source
             
             match = re.search(r'https://www.google.com/recaptcha/api.js\?render=([^&]+)', page_source)
-            
-            if not match:
-                print("Error: No se pudo encontrar el sitekey de reCAPTCHA v3 en el código fuente.", flush=True)
-                take_screenshot(driver, "03_sitekey_not_found.png")
-                return False
-                
-            sitekey = match.group(1)
-            print(f"Sitekey de reCAPTCHA v3 encontrado: {sitekey}", flush=True)
 
-            try:
-                solver = TwoCaptcha(api_key_2captcha)
-                print("Enviando reCAPTCHA v3 a 2Captcha... (esto puede tardar)", flush=True)
-                result = solver.recaptcha(
-                    sitekey=sitekey,
-                    url=url,
-                    version='v3',
-                    action='login',
-                    score=0.7
-                )
+            if sitekey:
+                print(f"Sitekey de reCAPTCHA v3 encontrado: {sitekey}", flush=True)
 
-                if result and result.get('code'):
-                    token = result['code']
-                    print("reCAPTCHA v3 resuelto. Inyectando token.", flush=True)
-                    recaptcha_element_selector = '[name="g-recaptcha-response"]';
-                    js_inyectar_token = f"document.querySelector('{recaptcha_element_selector}').value = arguments[0];"
+                try:
+                    solver = TwoCaptcha(api_key_2captcha)
+                    print("Enviando reCAPTCHA v3 a 2Captcha... (esto puede tardar)", flush=True)
+                    result = solver.recaptcha(
+                        sitekey=sitekey,
+                        url=url,
+                        version='v3',
+                        action='login',
+                        score=0.7
+                    )
 
-                    try:
-                        print(f"INTENTO A: Esperando que el elemento '{recaptcha_element_selector}' exista.", flush=True)
-                        WebDriverWait(driver, 10).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, recaptcha_element_selector))
-                        )
-                        print("INTENTO A: Éxito. El elemento reCAPTCHA fue encontrado en el DOM.", flush=True)
-                        driver.execute_script(js_inyectar_token, token)
-                        print("Token inyectado en el elemento existente.", flush=True)
+                    if result and result.get('code'):
+                        token = result['code']
+                        print("reCAPTCHA v3 resuelto. Inyectando token.", flush=True)
+                        recaptcha_element_selector = '[name="g-recaptcha-response"]';
+                        js_inyectar_token = f"document.querySelector('{recaptcha_element_selector}').value = arguments[0];"
 
-                    except TimeoutException:
-                        print("INTENTO A: Falló. El elemento reCAPTCHA no se encontró.", flush=True)
-                        print("INTENTO B: Creando el elemento dinámicamente.", flush=True)
-                        js_crear_e_inyectar = f"""
-                        var newTextarea = document.createElement('textarea');
-                        newTextarea.name = 'g-recaptcha-response';
-                        newTextarea.style.display = 'none';
-                        document.body.appendChild(newTextarea);
-                        document.querySelector('{recaptcha_element_selector}').value = arguments[0];
-                        """
-                        driver.execute_script(js_crear_e_inyectar, token)
-                        print("INTENTO B: Éxito. Elemento creado y token inyectado.", flush=True)
-                else:
-                    print(f"Error: No se pudo obtener una solución de 2Captcha. Respuesta: {result}", flush=True)
+                        try:
+                            print(f"INTENTO A: Esperando que el elemento '{recaptcha_element_selector}' exista.", flush=True)
+                            WebDriverWait(driver, 10).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, recaptcha_element_selector))
+                            )
+                            print("INTENTO A: Éxito. El elemento reCAPTCHA fue encontrado en el DOM.", flush=True)
+                            driver.execute_script(js_inyectar_token, token)
+                            print("Token inyectado en el elemento existente.", flush=True)
+
+                        except TimeoutException:
+                            print("INTENTO A: Falló. El elemento reCAPTCHA no se encontró.", flush=True)
+                            print("INTENTO B: Creando el elemento dinámicamente.", flush=True)
+                            js_crear_e_inyectar = f"""
+                            var newTextarea = document.createElement('textarea');
+                            newTextarea.name = 'g-recaptcha-response';
+                            newTextarea.style.display = 'none';
+                            document.body.appendChild(newTextarea);
+                            document.querySelector('{recaptcha_element_selector}').value = arguments[0];
+                            """
+                            driver.execute_script(js_crear_e_inyectar, token)
+                            print("INTENTO B: Éxito. Elemento creado y token inyectado.", flush=True)
+                    else:
+                        print(f"Error: No se pudo obtener una solución de 2Captcha. Respuesta: {result}", flush=True)
+                        return False
+
+                except Exception as e:
+                    print(f"Error durante el proceso de resolución de CAPTCHA: {e}", flush=True)
                     return False
-
-            except Exception as e:
-                print(f"Error durante el proceso de resolución de CAPTCHA: {e}", flush=True)
-                return False
+            else:
+                print("No hay reCAPTCHA presente. Continuando con el login.", flush=True)
 
             print("Haciendo clic en el botón de login...", flush=True)
             login_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, button_selector)))
@@ -383,7 +380,9 @@ def manejar_popup_bienvenida(driver, timeout=30):
         button_selectors = [
             "//button[contains(., 'Aceptar') or contains(., 'Acepto') or contains(., 'Entendido')]",
             "//div[contains(@class, 'mat-dialog-actions')]//button[contains(., 'Aceptar')]",
-            "//button[contains(@class, 'mat-button') and contains(., 'Aceptar')]"
+            "//button[contains(@class, 'mat-button') and contains(., 'Aceptar')]",
+            "//button[contains(@class, 'bs-btn') and contains(@class, 'bs-btn-primary') and contains(., 'Aceptar')]",
+            "//div[contains(@class, 'bs-dynamic-dialog-footer')]//button[contains(@class, 'bs-btn') and contains(@class, 'bs-btn-primary')]"
         ]
         
         button_found = False
@@ -466,7 +465,7 @@ def manejar_posibles_popups(driver):
         
         # Verificar si hay algún overlay o backdrop que bloquee la interacción
         try:
-            backdrops = driver.find_elements(By.CSS_SELECTOR, ".cdk-overlay-backdrop, .modal-backdrop, .mat-dialog-backdrop")
+            backdrops = driver.find_elements(By.CSS_SELECTOR, ".cdk-overlay-backdrop, .modal-backdrop, .mat-dialog-backdrop, .bs-overlay-backdrop")
             for backdrop in backdrops:
                 try:
                     if backdrop.is_displayed():
@@ -678,44 +677,40 @@ def sondear_siniestros_asignados(driver, compania):
     print(f"\n--- Iniciando sondeo de Siniestros Asignados para {compania.upper()} ---", flush=True)
     
     try:
-        # Navegación inicial
-        print("Navegando a Siniestros -> Gestión de siniestros...", flush=True)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Siniestros')]" ))).click()
-        esperar_pagina_cargada(driver)
-        submenu_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div#item-1.show")))
-        submenu_container.find_element(By.XPATH, ".//a[contains(., 'Gestión de siniestros')]" ).click()
-        esperar_pagina_cargada(driver)
+        # Las pestañas están directamente accesibles, no es necesario navegar a "Siniestros" y "Gestión de siniestros"
         print("Navegando a la pestaña 'Asignados'", flush=True)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Asignados')]" ))).click()
+        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Asignados')]" ))).click()
         esperar_pagina_cargada(driver)
 
         page_num = 1
         while True:
             print(f"\nRecolectando datos de tabla en página {page_num}...", flush=True)
-            row_selector = "//tr[contains(@class, 'mat-row') and .//td[contains(@class, 'mat-column-FechaAsignacion')]]"
+            row_selector = "//tr[contains(@class, 'ng-star-inserted')]"
             try:
                 WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
                 rows = driver.find_elements(By.XPATH, row_selector)
                 print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
 
-                # Extraer todos los datos de cada fila
+                # Extraer todos los datos de cada fila usando índices
                 for row in rows:
-                    row_data = {
-                        'Compania': compania,
-                        'FechaAsignacion': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaAsignacion").text,
-                        'NumeroSiniestro': row.find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text,
-                        'EstadoContacto': row.find_element(By.CSS_SELECTOR, "td.mat-column-EstadoContacto").text,
-                        'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
-                        'NombreAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-NombreAsegurado").text,
-                        'RutAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-RutAsegurado").text,
-                        'CorreoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-EmailAsegurado").text,
-                        'TelefonoAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-TelefonoAsegurado").text,
-                        'Marca': row.find_element(By.CSS_SELECTOR, "td.mat-column-Marca").text,
-                        'Modelo': row.find_element(By.CSS_SELECTOR, "td.mat-column-Modelo").text,
-                        'TipoDanio': row.find_element(By.CSS_SELECTOR, "td.mat-column-TipoDanio").text,
-                        'FechaEstimadaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaEstimadaIngreso").text
-                    }
-                    yield row_data
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    if len(cells) >= 18:  # Asegurarse de que hay suficientes celdas
+                        row_data = {
+                            'Compania': compania,
+                            'FechaAsignacion': cells[0].text,
+                            'NumeroSiniestro': cells[1].text,
+                            'EstadoContacto': cells[2].text,
+                            'Patente': cells[4].text,
+                            'NombreAsegurado': cells[9].text,
+                            'RutAsegurado': cells[10].text,
+                            'TelefonoAsegurado': cells[11].text,
+                            'CorreoAsegurado': cells[12].text,
+                            'Marca': cells[13].text,
+                            'Modelo': cells[14].text,
+                            'TipoDanio': cells[16].text,
+                            'FechaEstimadaIngreso': cells[17].text
+                        }
+                        yield row_data
                 
                 print(f"Datos de {len(rows)} filas guardados.", flush=True)
 
@@ -729,11 +724,13 @@ def sondear_siniestros_asignados(driver, compania):
                 first_row_id_before_pagination = None
                 if rows: # Check if there are rows on the current page
                     try:
-                        first_row_id_before_pagination = rows[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                        cells = rows[0].find_elements(By.TAG_NAME, "td")
+                        if len(cells) > 1:
+                            first_row_id_before_pagination = cells[1].text  # NumeroSiniestro is at index 1
                     except NoSuchElementException:
                         print("WARN: Could not get first row ID for pagination check.", flush=True)
 
-                next_button_selector = "button.mat-paginator-navigation-next:not([disabled])"
+                next_button_selector = "button.p-paginator-next.p-paginator-element.p-link:not([disabled])"
                 next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
                 driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
                 time.sleep(1)
@@ -747,10 +744,12 @@ def sondear_siniestros_asignados(driver, compania):
 
                 # Check if the content has changed (i.e., we moved to a new page) and if the number of rows is 0
                 if first_row_id_before_pagination and rows_after_pagination:
-                    first_row_id_after_pagination = rows_after_pagination[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
-                    if first_row_id_before_pagination == first_row_id_after_pagination:
-                        print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
-                        break # Break if we are stuck on the same page content
+                    cells_after = rows_after_pagination[0].find_elements(By.TAG_NAME, "td")
+                    if len(cells_after) > 1:
+                        first_row_id_after_pagination = cells_after[1].text
+                        if first_row_id_before_pagination == first_row_id_after_pagination:
+                            print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
+                            break # Break if we are stuck on the same page content
                 elif not rows_after_pagination: # If no rows are found on the new page, it's the end
                     print("No se encontraron filas en la nueva página. Fin de la recolección.", flush=True)
                     break
@@ -832,17 +831,12 @@ def sondear_siniestros_liquidacion(driver, compania):
                 pass
                 # print("DEBUG: Pestaña 'Análisis de Liquidación' no encontrada.", flush=True)
 
-        # Asumir que ya estamos en "Gestión de siniestros" desde sondear_siniestros_asignados
-        # Solo navegar directamente a la pestaña si no está activa
-        if not tab_active:
-            print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-            analisis_click_element = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//a[@data-toggle='tab' and contains(text(), 'Analisis de Liquidación')]" )))
-            print(f"DEBUG: Elemento clickeable encontrado: texto='{analisis_click_element.text}', visible={analisis_click_element.is_displayed()}, enabled={analisis_click_element.is_enabled()}", flush=True)
-            analisis_click_element.click()
-            print("DEBUG: Clic realizado en 'Análisis de Liquidación'.", flush=True)
-            esperar_pagina_cargada(driver)
-        else:
-            print("Pestaña 'Análisis de Liquidación' ya está activa. Saltando navegación.", flush=True)
+        # Las pestañas están directamente accesibles
+        # Navegar a la pestaña 'Análisis de Liquidación'
+        print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
+        analisis_click_element = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Análisis de Liquidación')]" )))
+        analisis_click_element.click()
+        esperar_pagina_cargada(driver)
 
         # DEBUG: Inspeccionar todos los botones disponibles en la página
         # print("DEBUG: Inspeccionando todos los botones en la página...", flush=True)
@@ -902,27 +896,30 @@ def sondear_siniestros_liquidacion(driver, compania):
         page_num = 1
         while True:
             print(f"\nRecolectando datos de tabla en página {page_num}...", flush=True)
-            row_selector = "//tr[contains(@class, 'mat-row') and .//td[contains(@class, 'mat-column-NumeroSiniestro')]]"
+            row_selector = "//tr[contains(@class, 'ng-star-inserted')]"
             try:
                 WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, row_selector)))
                 rows = driver.find_elements(By.XPATH, row_selector)
                 print(f"Encontradas {len(rows)} filas en la página {page_num}.", flush=True)
 
-                # Extraer todos los datos de cada fila
+                # Extraer todos los datos de cada fila usando índices
                 for row in rows:
-                    NumeroSiniestro = row.find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text.strip()
-                    if NumeroSiniestro:
-                        row_data = {
-                            'Compania': compania,
-                            'FechaIngreso': row.find_element(By.CSS_SELECTOR, "td.mat-column-FechaIngreso").text,
-                            'NumeroSiniestro': NumeroSiniestro,
-                            'Patente': row.find_element(By.CSS_SELECTOR, "td.mat-column-Patente").text,
-                            'RutAsegurado': row.find_element(By.CSS_SELECTOR, "td.mat-column-RutAsegurado").text,
-                            'Marca': row.find_element(By.CSS_SELECTOR, "td.mat-column-Marca").text,
-                            'Modelo': row.find_element(By.CSS_SELECTOR, "td.mat-column-Modelo").text,
-                            'TipoDanio': row.find_element(By.CSS_SELECTOR, "td.mat-column-TipoDanio").text,
-                        }
-                        yield row_data
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    if len(cells) >= 7:  # Asegurarse de que hay suficientes celdas
+                        NumeroSiniestro = cells[1].text.strip()
+                        if NumeroSiniestro:
+                            row_data = {
+                                'Compania': compania,
+                                'FechaIngreso': cells[0].text,
+                                'NumeroSiniestro': NumeroSiniestro,
+                                'Patente': cells[2].text,
+                                'RutAsegurado': cells[3].text,
+                                'Marca': cells[4].text,
+                                'Modelo': cells[5].text,
+                                'TipoDanio': cells[6].text,
+                                'Status': 'ANALISIS LIQUIDACION',
+                            }
+                            yield row_data
                 
                 print(f"Datos de {len(rows)} filas guardados.", flush=True)
 
@@ -936,11 +933,13 @@ def sondear_siniestros_liquidacion(driver, compania):
                 first_row_id_before_pagination = None
                 if rows: # Check if there are rows on the current page
                     try:
-                        first_row_id_before_pagination = rows[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
+                        cells = rows[0].find_elements(By.TAG_NAME, "td")
+                        if len(cells) > 1:
+                            first_row_id_before_pagination = cells[1].text  # NumeroSiniestro is at index 1
                     except NoSuchElementException:
                         print("WARN: Could not get first row ID for pagination check.", flush=True)
 
-                next_button_selector = "button.mat-paginator-navigation-next:not([disabled])"
+                next_button_selector = "button.p-paginator-next.p-paginator-element.p-link:not([disabled])"
                 next_button = driver.find_element(By.CSS_SELECTOR, next_button_selector)
                 driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
                 time.sleep(1)
@@ -954,10 +953,12 @@ def sondear_siniestros_liquidacion(driver, compania):
 
                 # Check if the content has changed (i.e., we moved to a new page) and if the number of rows is 0
                 if first_row_id_before_pagination and rows_after_pagination:
-                    first_row_id_after_pagination = rows_after_pagination[0].find_element(By.CSS_SELECTOR, "td.mat-column-NumeroSiniestro").text
-                    if first_row_id_before_pagination == first_row_id_after_pagination:
-                        print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
-                        break # Break if we are stuck on the same page content
+                    cells_after = rows_after_pagination[0].find_elements(By.TAG_NAME, "td")
+                    if len(cells_after) > 1:
+                        first_row_id_after_pagination = cells_after[1].text
+                        if first_row_id_before_pagination == first_row_id_after_pagination:
+                            print("Detectado bucle de paginación: La primera fila no cambió. Fin de la recolección.", flush=True)
+                            break # Break if we are stuck on the same page content
                 elif not rows_after_pagination: # If no rows are found on the new page, it's the end
                     print("No se encontraron filas en la nueva página. Fin de la recolección.", flush=True)
                     break
