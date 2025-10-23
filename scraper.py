@@ -1,4 +1,4 @@
-import gc
++import gc
 import os
 import time
 import json
@@ -323,28 +323,82 @@ def login_to_bci(driver, user, password, api_key_2captcha):
 def check_login_status(driver):
     """
     Verifica si el driver sigue logueado buscando un elemento clave en la página.
-    
+
     Args:
         driver: Instancia de Selenium WebDriver
-        
+
     Returns:
         bool: True si la sesión está activa, False en caso contrario
     """
     print("\n--- Verificando estado de login ---", flush=True)
-    try:
-        # Buscar el elemento 'Calendario' que confirma sesión activa
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.XPATH, "//a[contains(., 'Calendario')]" ))
-        )
-        print("Elemento 'Calendario' encontrado. Sesión activa.", flush=True)
-        return True
-    except TimeoutException:
-        print("Elemento 'Calendario' no encontrado. Sesión perdida.", flush=True)
-        return False
-    except Exception as e:
-        print(f"Error al verificar el estado de login: {e}", flush=True)
-        take_screenshot(driver, "error_check_login_status.png")
-        return False
+    max_retries = 2
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Log current URL and page title for diagnostics
+            current_url = driver.current_url
+            page_title = driver.title
+            print(f"DEBUG: Current URL: {current_url}", flush=True)
+            print(f"DEBUG: Page title: {page_title}", flush=True)
+
+            # Ensure page is fully loaded
+            WebDriverWait(driver, 10).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            print(f"DEBUG: Document readyState: complete", flush=True)
+
+            # Dismiss any overlays or popups that might hide elements
+            overlays = driver.find_elements(By.CSS_SELECTOR, ".cdk-overlay-backdrop, .modal-backdrop, .mat-dialog-backdrop, .bs-overlay-backdrop")
+            for overlay in overlays:
+                if overlay.is_displayed():
+                    try:
+                        driver.execute_script("arguments[0].click();", overlay)
+                        print("DEBUG: Overlay dismissed.", flush=True)
+                        time.sleep(1)
+                    except:
+                        pass
+
+            # Search for 'Calendario' element with more detailed logging
+            calendario_elements = driver.find_elements(By.XPATH, "//a[contains(., 'Calendario')]")
+            print(f"DEBUG: Found {len(calendario_elements)} elements containing 'Calendario'", flush=True)
+            for i, elem in enumerate(calendario_elements):
+                print(f"DEBUG: Element {i+1}: text='{elem.text}', displayed={elem.is_displayed()}, enabled={elem.is_enabled()}", flush=True)
+
+            # Wait for the element to be visible
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "//a[contains(., 'Calendario')]" ))
+            )
+            print("Elemento 'Calendario' encontrado y visible. Sesión activa.", flush=True)
+            return True
+        except TimeoutException:
+            print(f"Elemento 'Calendario' no encontrado en intento {attempt}. Intentando elementos alternativos.", flush=True)
+            # Try alternative element checks
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.XPATH, "//a[contains(., 'Siniestros')]" ))
+                )
+                print("Elemento alternativo 'Siniestros' encontrado y visible. Sesión activa.", flush=True)
+                return True
+            except TimeoutException:
+                print("Elementos alternativos tampoco encontrados.", flush=True)
+            if attempt < max_retries:
+                print("Refrescando página y reintentando...", flush=True)
+                driver.refresh()
+                time.sleep(3)
+            else:
+                # Additional diagnostic: check if we're on the expected page
+                if "busqueda-avanzada" not in current_url:
+                    print("DEBUG: Not on expected post-login page (busqueda-avanzada not in URL)", flush=True)
+                return False
+        except Exception as e:
+            print(f"Error al verificar el estado de login en intento {attempt}: {e}", flush=True)
+            if attempt < max_retries:
+                print("Refrescando página y reintentando...", flush=True)
+                driver.refresh()
+                time.sleep(3)
+            else:
+                take_screenshot(driver, "error_check_login_status.png")
+                return False
+    return False
 
 def esperar_pagina_cargada(driver, timeout=30):
     """
