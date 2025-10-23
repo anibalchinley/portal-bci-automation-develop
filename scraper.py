@@ -18,7 +18,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
-import traceback
 import base64
 from twocaptcha import TwoCaptcha
 from selenium_stealth import stealth
@@ -256,9 +255,9 @@ def login_to_bci(driver, user, password, api_key_2captcha):
             driver.get(url)
             print(f"DEBUG: URL actual: {driver.current_url}", flush=True)
             
-            user_selector = 'input[formcontrolname="username"]';
-            pass_selector = 'input[formcontrolname="password"]';
-            button_selector = 'button.bs-btn.bs-btn-primary.btn-mobile-center.w-100';
+            user_selector = 'input[formcontrolname="username"]'
+            pass_selector = 'input[formcontrolname="password"]'
+            button_selector = 'button.bs-btn.bs-btn-primary.btn-mobile-center.w-100'
             
             print("Esperando a que los campos de usuario y contraseña sean visibles.", flush=True)
             email_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, user_selector)))
@@ -292,7 +291,7 @@ def login_to_bci(driver, user, password, api_key_2captcha):
                     if result and result.get('code'):
                         token = result['code']
                         print("reCAPTCHA v3 resuelto. Inyectando token.", flush=True)
-                        recaptcha_element_selector = '[name="g-recaptcha-response"]';
+                        recaptcha_element_selector = '[name="g-recaptcha-response"]'
                         js_inyectar_token = f"document.querySelector('{recaptcha_element_selector}').value = arguments[0];"
 
                         try:
@@ -466,7 +465,7 @@ def esperar_pagina_cargada(driver, timeout=30):
         print("Documento cargado.", flush=True)
 
         # 2. Esperar a que cualquier loader desaparezca
-        loader_selector = "div.loader-container, .loader, [role='progressbar']"
+        loader_selector = "div.loader-container, .loader, [role='progressbar'], div.bs-page-loader"
         WebDriverWait(driver, timeout).until(
             EC.invisibility_of_element_located((By.CSS_SELECTOR, loader_selector))
         )
@@ -734,6 +733,23 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
                 lambda d: detectar_contexto_actual(d) == compania_objetivo.upper()
             )
 
+            # Extra wait specifically for BCI context change due to slower loader disappearance
+            if compania_objetivo.upper() == "BCI":
+                print("Extra wait for BCI context change to ensure page loader fully disappears...")
+                max_retries = 5
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        WebDriverWait(driver, 10 + attempt * 5).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+                        )
+                        print(f"Page loader fully disappeared for BCI after {attempt} attempts.")
+                        break
+                    except TimeoutException:
+                        if attempt == max_retries:
+                            print("Warning: Page loader still visible after extra waits for BCI.")
+                        else:
+                            time.sleep(2)
+
             print(f"Éxito: El contexto se cambió a {compania_objetivo.upper()} correctamente.")
             return True
 
@@ -842,13 +858,44 @@ def sondear_siniestros_asignados(driver, compania):
     Orquesta el proceso de scraping en la pestaña 'Asignados'.
     v4.5: Añade el parámetro compania para etiquetar los datos.
     """
-    file_path = "/tmp/downloads/siniestros_asignados.xlsx"
     print(f"\n--- Iniciando sondeo de Siniestros Asignados para {compania.upper()} ---", flush=True)
-    
+
     try:
         # Las pestañas están directamente accesibles, no es necesario navegar a "Siniestros" y "Gestión de siniestros"
         print("Navegando a la pestaña 'Asignados'", flush=True)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Asignados')]" ))).click()
+
+        # Enhanced page loader waiting with retry loop and increasing delays
+        print("Waiting for page loader to fully disappear before navigating to 'Asignados'...")
+        max_loader_retries = 5
+        for loader_attempt in range(1, max_loader_retries + 1):
+            try:
+                WebDriverWait(driver, 10 + loader_attempt * 5).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+                )
+                print(f"Page loader fully disappeared after {loader_attempt} attempts.")
+                break
+            except TimeoutException:
+                if loader_attempt == max_loader_retries:
+                    print("Warning: Page loader still visible after all retries. Proceeding anyway.")
+                else:
+                    time.sleep(2)
+
+        # Intentar clickear con reintentos y manejo de excepciones
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                asignados_tab = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Asignados')]" )))
+                driver.execute_script("arguments[0].click();", asignados_tab)
+                print(f"Click en pestaña 'Asignados' realizado exitosamente en intento {attempt}.", flush=True)
+                break
+            except (ElementClickInterceptedException, StaleElementReferenceException) as e:
+                print(f"Error en intento {attempt} al clickear 'Asignados': {e}", flush=True)
+                if attempt == max_retries:
+                    raise e
+                time.sleep(2)
+                # Re-encontrar el elemento después de esperar
+                continue
+
         esperar_pagina_cargada(driver)
 
         page_num = 1
@@ -1003,8 +1050,29 @@ def sondear_siniestros_liquidacion(driver, compania):
         # Las pestañas están directamente accesibles
         # Navegar a la pestaña 'Análisis de Liquidación'
         print("Navegando a la pestaña 'Análisis de Liquidación'", flush=True)
-        analisis_click_element = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Análisis de Liquidación')]" )))
-        analisis_click_element.click()
+
+        # Esperar a que el page loader desaparezca antes de intentar clickear
+        WebDriverWait(driver, 30).until(
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+        )
+        print("Page loader desaparecido antes de navegar a 'Análisis de Liquidación'.", flush=True)
+
+        # Intentar clickear con reintentos y manejo de excepciones
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                analisis_click_element = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'font-bold') and contains(@class, 'white-space-nowrap') and contains(@class, 'm-0') and contains(@class, 'ng-star-inserted') and contains(text(), 'Análisis de Liquidación')]" )))
+                driver.execute_script("arguments[0].click();", analisis_click_element)
+                print(f"Click en pestaña 'Análisis de Liquidación' realizado exitosamente en intento {attempt}.", flush=True)
+                break
+            except (ElementClickInterceptedException, StaleElementReferenceException) as e:
+                print(f"Error en intento {attempt} al clickear 'Análisis de Liquidación': {e}", flush=True)
+                if attempt == max_retries:
+                    raise e
+                time.sleep(2)
+                # Re-encontrar el elemento después de esperar
+                continue
+
         esperar_pagina_cargada(driver)
 
         # DEBUG: Inspeccionar todos los botones disponibles en la página
