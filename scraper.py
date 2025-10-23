@@ -25,8 +25,8 @@ from selenium_stealth import stealth
 
 def detectar_contexto_actual(driver):
     """
-    Detecta el contexto actual (BCI o Zenit) basado en el logo visible.
-    Espera hasta 10 segundos para que aparezca uno de los logos.
+    Detecta el contexto actual (BCI o Zenit) basado en el texto del bs-selector en la sección "Local actual".
+    Espera hasta 10 segundos para que aparezca el selector.
 
     Args:
         driver: Instancia de Selenium WebDriver.
@@ -35,26 +35,25 @@ def detectar_contexto_actual(driver):
         str: "BCI", "ZENIT", o "DESCONOCIDO" si no se encuentra ninguno.
     """
     try:
-        # Espera explícita para cualquiera de los dos logos
+        # Espera explícita para el bs-selector
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "img.bci, img.zenit"))
+            EC.presence_of_element_located((By.CSS_SELECTOR, "a.bs-selector.grande.visited"))
         )
-        
-        # Verificar logo BCI
-        logo_bci = driver.find_elements(By.CSS_SELECTOR, "img.bci")
-        if logo_bci and logo_bci[0].is_displayed():
+
+        # Obtener el texto del selector
+        selector_element = driver.find_element(By.CSS_SELECTOR, "a.bs-selector.grande.visited")
+        selector_text = selector_element.text.strip().upper()
+
+        if "BCI" in selector_text:
             print("Contexto detectado: BCI")
             return "BCI"
-            
-        # Verificar logo Zenit
-        logo_zenit = driver.find_elements(By.CSS_SELECTOR, "img.zenit")
-        if logo_zenit and logo_zenit[0].is_displayed():
+        elif "ZENIT" in selector_text:
             print("Contexto detectado: ZENIT")
             return "ZENIT"
-            
+
         return "DESCONOCIDO"
     except TimeoutException:
-        print("Error de Timeout: No se encontró el logo de BCI ni de Zenit a tiempo.")
+        print("Error de Timeout: No se encontró el bs-selector a tiempo.")
         return "DESCONOCIDO"
     except Exception as e:
         print(f"Error inesperado en detectar_contexto_actual: {e}")
@@ -449,7 +448,6 @@ def manejar_popup_bienvenida(driver, timeout=30):
         # 2. Intentar diferentes selectores para el botón de aceptar
         button_selectors = [
             "//button[contains(., 'Aceptar') or contains(., 'Acepto') or contains(., 'Entendido')]",
-            "//div[contains(@class, 'mat-dialog-actions')]//button[contains(., 'Aceptar')]",
             "//button[contains(@class, 'mat-button') and contains(., 'Aceptar')]",
             "//button[contains(@class, 'bs-btn') and contains(@class, 'bs-btn-primary') and contains(., 'Aceptar')]",
             "//div[contains(@class, 'bs-dynamic-dialog-footer')]//button[contains(@class, 'bs-btn') and contains(@class, 'bs-btn-primary')]"
