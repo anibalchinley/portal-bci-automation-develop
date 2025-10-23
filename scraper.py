@@ -496,6 +496,7 @@ def manejar_posibles_popups(driver):
     """
     Maneja posibles popups que puedan aparecer durante la navegación.
     Incluye manejo de popups de bienvenida, notificaciones y otros diálogos emergentes.
+    Mejora la verificación para confirmar que los popups se cierren correctamente.
     """
     try:
         # Primero intentar manejar el popup de bienvenida estándar
@@ -503,29 +504,34 @@ def manejar_posibles_popups(driver):
             manejar_popup_bienvenida(driver)
         except Exception as e:
             print(f"No se pudo manejar el popup de bienvenida: {str(e)[:200]}", flush=True)
-        
+
         # Esperar un momento para que cualquier popup se cargue completamente
         time.sleep(2)
-        
+
         # Intentar cerrar cualquier notificación o diálogo emergente
         try:
             # Buscar botones de cierre en diálogos modales
-            botones_cierre = driver.find_elements(By.XPATH, 
+            botones_cierre = driver.find_elements(By.XPATH,
                 "//button[contains(@class, 'close') or contains(@class, 'mat-dialog-close') or @aria-label='Cerrar' or @title='Cerrar']"
             )
-            
+
             for boton in botones_cierre:
                 try:
                     if boton.is_displayed() and boton.is_enabled():
                         driver.execute_script("arguments[0].click();", boton)
                         print("Botón de cierre de diálogo encontrado y clickeado.", flush=True)
                         time.sleep(1)  # Esperar a que se cierre la animación
+                        # Verificar que el botón ya no esté visible
+                        if not boton.is_displayed():
+                            print("Verificación: Botón de cierre ya no visible.", flush=True)
+                        else:
+                            print("Advertencia: Botón de cierre aún visible después del clic.", flush=True)
                 except:
                     continue
-                    
+
         except Exception as e:
             print(f"Error al intentar cerrar diálogos: {str(e)[:200]}", flush=True)
-        
+
         # Verificar si hay algún overlay o backdrop que bloquee la interacción
         try:
             backdrops = driver.find_elements(By.CSS_SELECTOR, ".cdk-overlay-backdrop, .modal-backdrop, .mat-dialog-backdrop, .bs-overlay-backdrop")
@@ -536,15 +542,40 @@ def manejar_posibles_popups(driver):
                         driver.execute_script("arguments[0].click();", backdrop)
                         print("Backdrop encontrado y clickeado.", flush=True)
                         time.sleep(1)
+                        # Verificar que el backdrop ya no esté visible
+                        if not backdrop.is_displayed():
+                            print("Verificación: Backdrop ya no visible.", flush=True)
+                        else:
+                            print("Advertencia: Backdrop aún visible después del clic.", flush=True)
                 except:
                     continue
         except Exception as e:
             print(f"Error al manejar backdrops: {str(e)[:200]}", flush=True)
-            
+
+        # Verificación final: Asegurarse de que no queden elementos de popup visibles
+        try:
+            remaining_popups = driver.find_elements(By.CSS_SELECTOR, ".cdk-overlay-container .cdk-overlay-pane, .modal.show, .mat-dialog-container")
+            if remaining_popups:
+                print(f"Advertencia: Aún hay {len(remaining_popups)} elementos de popup visibles.", flush=True)
+                for popup in remaining_popups:
+                    try:
+                        # Intentar cerrar con Escape
+                        ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                        time.sleep(1)
+                        if not popup.is_displayed():
+                            print("Verificación: Popup cerrado con Escape.", flush=True)
+                            break
+                    except:
+                        continue
+            else:
+                print("Verificación: No se detectan popups visibles.", flush=True)
+        except Exception as e:
+            print(f"Error en verificación final de popups: {str(e)[:200]}", flush=True)
+
     except Exception as e:
         print(f"Error inesperado en manejar_posibles_popups: {str(e)[:200]}", flush=True)
         take_screenshot(driver, "error_manejo_popups.png")
-    
+
     return True
 
 
@@ -589,36 +620,42 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
         print(f"Contexto actual es {contexto_actual}. Intentando cambiar a {compania_objetivo.upper()}...")
         
         try:
-            # Paso 1: Clic en el botón del menú de usuario con JS
-            user_menu_selector = "a#userDropdown"
-            user_menu_button = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, user_menu_selector))
+            # Paso 1: Encontrar el selector de contexto en la sección "Local actual"
+            # Buscar el enlace bs-selector que muestra la compañía actual
+            context_selector = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "a.bs-selector.grande.visited"))
             )
-            driver.execute_script("arguments[0].click();", user_menu_button)
+            print("Selector de contexto encontrado.")
 
-            # Paso 2: Esperar a que el panel del menú esté visible
-            menu_panel_selector = "div.dropdown-menu.show"
-            menu_panel = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, menu_panel_selector))
+            # Paso 2: Hacer clic en el selector para abrir el dropdown
+            driver.execute_script("arguments[0].click();", context_selector)
+            print("Clic en selector de contexto realizado.")
+
+            # Paso 3: Esperar a que las opciones del dropdown aparezcan dinámicamente
+            # Esperar hasta que aparezcan opciones con "BCI Seguros" o "Zenit"
+            WebDriverWait(driver, 10).until(
+                lambda d: len(d.find_elements(By.XPATH, "//*[contains(text(), 'BCI Seguros') or contains(text(), 'Zenit')]")) > 0
             )
-            print("Panel del menú desplegable está visible.")
+            print("Opciones del dropdown cargadas.")
 
-            # Paso 3: Iterar y encontrar la opción correcta usando innerHTML (case-insensitive)
-            options = menu_panel.find_elements(By.TAG_NAME, "a")
+            # Paso 4: Encontrar y seleccionar la opción correcta
             option_found = False
+            # Buscar todas las opciones visibles en el dropdown
+            options = driver.find_elements(By.XPATH, "//a[contains(@class, 'bs-selector') or contains(text(), 'BCI Seguros') or contains(text(), 'Zenit')]")
             for option in options:
-                inner_html = option.get_attribute('innerHTML')
-                if texto_opcion_menu.lower() in inner_html.lower():
-                    print(f"Opción encontrada en innerHTML: '{inner_html.strip()}'. Haciendo clic.")
-                    driver.execute_script("arguments[0].click();", option)
-                    option_found = True
-                    break
-            
-            if not option_found:
-                print(f"Error: No se encontró la opción '{texto_opcion_menu}' en el menú.")
-                raise TimeoutException(f"La opción '{texto_opcion_menu}' no fue encontrada en el menú.")
+                if option.is_displayed() and option.is_enabled():
+                    option_text = option.text.strip()
+                    if texto_opcion_menu.lower() in option_text.lower():
+                        print(f"Opción encontrada: '{option_text}'. Seleccionando.")
+                        driver.execute_script("arguments[0].click();", option)
+                        option_found = True
+                        break
 
-            # Paso 4: Esperar y verificar el cambio
+            if not option_found:
+                print(f"Error: No se encontró la opción '{texto_opcion_menu}' en el dropdown.")
+                raise TimeoutException(f"La opción '{texto_opcion_menu}' no fue encontrada en el dropdown.")
+
+            # Paso 5: Esperar y verificar el cambio
             print("Cambio de contexto solicitado. Esperando carga de página...")
             esperar_pagina_cargada(driver)
             manejar_popup_bienvenida(driver)
@@ -627,7 +664,7 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
             WebDriverWait(driver, 20).until(
                 lambda d: detectar_contexto_actual(d) == compania_objetivo.upper()
             )
-            
+
             print(f"Éxito: El contexto se cambió a {compania_objetivo.upper()} correctamente.")
             return True
 
