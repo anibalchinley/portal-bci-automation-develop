@@ -289,13 +289,20 @@ def login_to_bci(driver, user, password, api_key_2captcha):
             # Manejar popup post-login
             print("Esperando y cerrando popup post-login...", flush=True)
             try:
+                # Esperar a que el page loader desaparezca antes de intentar interactuar con popups
+                WebDriverWait(driver, 30).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+                )
+                print("Page loader desaparecido, procediendo con popup.", flush=True)
+
                 popup_button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, ".bs-dynamic-dialog-footer button.bs-btn.bs-btn-primary"))
                 )
-                popup_button.click()
+                # Usar JavaScript click para evitar ElementClickInterceptedException
+                driver.execute_script("arguments[0].click();", popup_button)
                 print("Popup post-login cerrado.", flush=True)
             except TimeoutException:
-                print("No se encontró popup post-login.", flush=True)
+                print("No se encontró popup post-login o timeout esperando loader.", flush=True)
             
             # Verificar que la sesión esté realmente activa
             try:
@@ -499,6 +506,15 @@ def manejar_posibles_popups(driver):
     Mejora la verificación para confirmar que los popups se cierren correctamente.
     """
     try:
+        # Esperar a que el page loader desaparezca antes de manejar popups
+        try:
+            WebDriverWait(driver, 30).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+            )
+            print("Page loader desaparecido antes de manejar popups.", flush=True)
+        except TimeoutException:
+            print("Timeout esperando que el page loader desaparezca.", flush=True)
+
         # Primero intentar manejar el popup de bienvenida estándar
         try:
             manejar_popup_bienvenida(driver)
@@ -518,6 +534,10 @@ def manejar_posibles_popups(driver):
             for boton in botones_cierre:
                 try:
                     if boton.is_displayed() and boton.is_enabled():
+                        # Esperar a que no haya page loader antes de clickear
+                        WebDriverWait(driver, 10).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+                        )
                         driver.execute_script("arguments[0].click();", boton)
                         print("Botón de cierre de diálogo encontrado y clickeado.", flush=True)
                         time.sleep(1)  # Esperar a que se cierre la animación
@@ -538,6 +558,10 @@ def manejar_posibles_popups(driver):
             for backdrop in backdrops:
                 try:
                     if backdrop.is_displayed():
+                        # Esperar a que no haya page loader antes de clickear backdrop
+                        WebDriverWait(driver, 10).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.bs-page-loader"))
+                        )
                         # Intentar hacer clic en una esquina del backdrop para cerrarlo
                         driver.execute_script("arguments[0].click();", backdrop)
                         print("Backdrop encontrado y clickeado.", flush=True)
