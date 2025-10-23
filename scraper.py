@@ -117,7 +117,14 @@ def detectar_contexto_actual(driver):
             except Exception as e:
                 print(f"DEBUG: Error al buscar 'Local actual': {e}")
 
-            return "DESCONOCIDO"
+            # Intentar inferir contexto desde la URL
+            current_url = driver.current_url.lower()
+            if "bciseguros" in current_url:
+                print("Contexto inferido como BCI desde la URL (bs-selector no encontrado)")
+                return "BCI"
+            else:
+                print("No se pudo inferir contexto desde la URL")
+                return "DESCONOCIDO"
 
         # Obtener el texto del selector
         selector_text = selector_element.text.strip().upper()
@@ -716,9 +723,8 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
             return True
             
         if contexto_actual == "DESCONOCIDO":
-            print("Error: No se pudo determinar el contexto actual. Abortando.", flush=True)
-            take_screenshot(driver, f"contexto_desconocido_attempt_{attempt}.png")
-            return False
+            print("Advertencia: No se pudo determinar el contexto actual. Asumiendo BCI por defecto.", flush=True)
+            contexto_actual = "BCI"
 
         print(f"Contexto actual es {contexto_actual}. Intentando cambiar a {compania_objetivo.upper()}...")
         
