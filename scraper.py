@@ -357,18 +357,15 @@ def check_login_status(driver):
                     except:
                         pass
 
-            # Search for 'Calendario' element with more detailed logging
-            calendario_elements = driver.find_elements(By.XPATH, "//a[contains(., 'Calendario')]")
-            print(f"DEBUG: Found {len(calendario_elements)} elements containing 'Calendario'", flush=True)
-            for i, elem in enumerate(calendario_elements):
-                print(f"DEBUG: Element {i+1}: text='{elem.text}', displayed={elem.is_displayed()}, enabled={elem.is_enabled()}", flush=True)
-
-            # Wait for the element to be visible
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, "//a[contains(., 'Calendario')]" ))
-            )
-            print("Elemento 'Calendario' encontrado y visible. Sesión activa.", flush=True)
-            return True
+            # Check if URL is the expected post-login page and page is loaded
+            expected_url = "https://webproveedores.bciseguros.cl/busqueda-avanzada"
+            if driver.current_url == expected_url and driver.execute_script('return document.readyState') == 'complete':
+                print("URL correcta y página cargada. Sesión activa.", flush=True)
+                return True
+            else:
+                print(f"DEBUG: URL actual: {driver.current_url}, expected: {expected_url}", flush=True)
+                print(f"DEBUG: Document readyState: {driver.execute_script('return document.readyState')}", flush=True)
+                return False
         except TimeoutException:
             print(f"Elemento 'Calendario' no encontrado en intento {attempt}. Intentando elementos alternativos.", flush=True)
             # Try alternative element checks
