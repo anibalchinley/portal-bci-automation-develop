@@ -25,8 +25,8 @@ from selenium_stealth import stealth
 
 def detectar_contexto_actual(driver):
     """
-    Detecta el contexto actual (BCI o Zenit) basado en el texto del bs-selector en la sección "Local actual".
-    Espera hasta 20 segundos para que aparezca el selector, con múltiples estrategias de detección.
+    Detecta el contexto actual (BCI o Zenit) basado en el src del logo en la página.
+    Espera hasta 15 segundos para que aparezca el logo, con múltiples estrategias de detección.
 
     Args:
         driver: Instancia de Selenium WebDriver.
@@ -46,102 +46,64 @@ def detectar_contexto_actual(driver):
         except Exception:
             pass  # Ya estamos en el contexto principal
 
-        # DEBUG: Tomar screenshot antes de intentar encontrar el selector
-        take_screenshot(driver, "debug_contexto_before_selector.png")
-
-        # Lista de selectores posibles para el bs-selector, ordenados por prioridad
-        selectors = [
-            "a.bs-selector.grande.visited",
-            "a.bs-selector.grande",
-            "a.bs-selector.visited",
-            "a.bs-selector",
-            "[class*='bs-selector']",
-            "a[class*='bs-selector']"
+        # Buscar el logo por src que contenga "logo"
+        logo_selectors = [
+            "img[src*='logo']",
+            "img[alt*='logo']",
+            "img[class*='logo']"
         ]
 
-        selector_element = None
-        for selector in selectors:
+        logo_element = None
+        for selector in logo_selectors:
             try:
-                print(f"Intentando encontrar bs-selector con: {selector}")
-                # Espera hasta 10 segundos por selector
+                print(f"Intentando encontrar logo con: {selector}")
+                # Espera hasta 10 segundos por logo
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, selector))
                 )
-                selector_element = driver.find_element(By.CSS_SELECTOR, selector)
-                if selector_element.is_displayed():
-                    print(f"Selector encontrado y visible: {selector}")
+                logo_element = driver.find_element(By.CSS_SELECTOR, selector)
+                if logo_element.is_displayed():
+                    print(f"Logo encontrado y visible: {selector}")
                     break
                 else:
-                    print(f"Selector encontrado pero no visible: {selector}")
+                    print(f"Logo encontrado pero no visible: {selector}")
             except TimeoutException:
-                print(f"Timeout esperando selector: {selector}")
+                print(f"Timeout esperando logo: {selector}")
                 continue
             except Exception as e:
                 print(f"Error con selector {selector}: {e}")
                 continue
 
-        if not selector_element:
-            print("Error: Ningún selector de bs-selector fue encontrado.")
-            # DEBUG: Imprimir todos los elementos con 'bs-selector' en la clase
-            print("DEBUG: Buscando todos los elementos con 'bs-selector' en la clase...")
-            bs_selector_elements = driver.find_elements(By.CSS_SELECTOR, "[class*='bs-selector']")
-            print(f"DEBUG: Encontrados {len(bs_selector_elements)} elementos con 'bs-selector' en la clase:")
-            for i, elem in enumerate(bs_selector_elements):
-                print(f"  Elemento {i+1}: tag='{elem.tag_name}', text='{elem.text}', visible={elem.is_displayed()}, enabled={elem.is_enabled()}")
-                attrs = {attr: elem.get_attribute(attr) for attr in ['class', 'id', 'href'] if elem.get_attribute(attr)}
-                print(f"    Atributos: {attrs}")
-
-            # DEBUG: Imprimir todos los elementos 'a'
-            print("DEBUG: Buscando todos los elementos 'a'...")
-            a_elements = driver.find_elements(By.TAG_NAME, "a")
-            print(f"DEBUG: Encontrados {len(a_elements)} elementos 'a':")
-            for i, elem in enumerate(a_elements[:20]):  # Limitar a los primeros 20 para no saturar
-                print(f"  Elemento 'a' {i+1}: text='{elem.text}', href='{elem.get_attribute('href')}', visible={elem.is_displayed()}")
-                attrs = {attr: elem.get_attribute(attr) for attr in ['class', 'id'] if elem.get_attribute(attr)}
-                print(f"    Atributos: {attrs}")
-
-            # DEBUG: Verificar iframes
-            print("DEBUG: Verificando iframes...")
-            iframes = driver.find_elements(By.TAG_NAME, "iframe")
-            print(f"DEBUG: Encontrados {len(iframes)} iframes:")
-            for i, iframe in enumerate(iframes):
-                print(f"  Iframe {i+1}: src='{iframe.get_attribute('src')}', visible={iframe.is_displayed()}")
-
-            # DEBUG: Buscar texto "Local actual"
-            print("DEBUG: Buscando texto 'Local actual'...")
-            try:
-                local_actual_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Local actual')]")
-                print(f"DEBUG: Encontrados {len(local_actual_elements)} elementos con 'Local actual':")
-                for i, elem in enumerate(local_actual_elements):
-                    print(f"  Elemento {i+1}: tag='{elem.tag_name}', text='{elem.text}', visible={elem.is_displayed()}")
-            except Exception as e:
-                print(f"DEBUG: Error al buscar 'Local actual': {e}")
-
+        if not logo_element:
+            print("Error: Ningún logo fue encontrado.")
             # Intentar inferir contexto desde la URL
             current_url = driver.current_url.lower()
             if "bciseguros" in current_url:
-                print("Contexto inferido como BCI desde la URL (bs-selector no encontrado)")
+                print("Contexto inferido como BCI desde la URL (logo no encontrado)")
                 return "BCI"
+            elif "zenit" in current_url:
+                print("Contexto inferido como ZENIT desde la URL (logo no encontrado)")
+                return "ZENIT"
             else:
                 print("No se pudo inferir contexto desde la URL")
                 return "DESCONOCIDO"
 
-        # Obtener el texto del selector
-        selector_text = selector_element.text.strip().upper()
-        print(f"Texto del selector encontrado: '{selector_text}'")
+        # Obtener el src del logo
+        logo_src = logo_element.get_attribute("src").lower()
+        print(f"Src del logo encontrado: '{logo_src}'")
 
-        if "BCI" in selector_text:
+        if "bciseguros" in logo_src:
             print("Contexto detectado: BCI")
             return "BCI"
-        elif "ZENIT" in selector_text:
+        elif "zenit" in logo_src:
             print("Contexto detectado: ZENIT")
             return "ZENIT"
 
-        print(f"Contexto desconocido en el texto del selector: '{selector_text}'")
+        print(f"Contexto desconocido en el src del logo: '{logo_src}'")
         return "DESCONOCIDO"
 
     except TimeoutException:
-        print("Error de Timeout: No se encontró el bs-selector a tiempo con ninguno de los selectores.")
+        print("Error de Timeout: No se encontró el logo a tiempo.")
         return "DESCONOCIDO"
     except Exception as e:
         print(f"Error inesperado en detectar_contexto_actual: {e}")
@@ -692,7 +654,7 @@ def manejar_posibles_popups(driver):
 def asegurar_contexto(driver, compania_objetivo, max_retries=2):
     """
     Asegura que el bot esté operando en el contexto deseado (BCI o ZENIT).
-    Versión 9.7: Verifica existencia del selector antes de intentar cambio de contexto.
+    Versión 9.8: Usa logo para detectar contexto y dropdown arrow para cambiar.
 
     Args:
         driver: Instancia de Selenium WebDriver.
@@ -702,7 +664,7 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
     Returns:
         bool: True si el contexto es o se cambió al objetivo, False en caso contrario.
     """
-    print(f"\n--- Asegurando contexto {compania_objetivo.upper()} (v9.7) ---", flush=True)
+    print(f"\n--- Asegurando contexto {compania_objetivo.upper()} (v9.8) ---", flush=True)
 
     opciones_menu = {
         "BCI": "BCI Seguros",
@@ -713,67 +675,42 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
         print(f"Error: Compañía objetivo '{compania_objetivo}' no es válida.", flush=True)
         return False
 
-    # Verificar si el bs-selector existe antes de intentar cambiar contexto
-    selector_exists = False
-    selectors = [
-        "a.bs-selector.grande.visited",
-        "a.bs-selector.grande",
-        "a.bs-selector.visited",
-        "a.bs-selector",
-        "[class*='bs-selector']",
-        "a[class*='bs-selector']"
-    ]
-    for selector in selectors:
-        try:
-            elements = driver.find_elements(By.CSS_SELECTOR, selector)
-            if elements and any(elem.is_displayed() for elem in elements):
-                selector_exists = True
-                break
-        except Exception:
-            continue
-
-    if not selector_exists:
-        print(f"Advertencia: El selector bs-selector no existe en la página. No es posible cambiar contexto a {compania_objetivo.upper()}. Saltando esta compañía.", flush=True)
-        return False
-
     for attempt in range(1, max_retries + 1):
         print(f"Intento {attempt}/{max_retries}...", flush=True)
-        
+
         contexto_actual = detectar_contexto_actual(driver)
-        
+
         if contexto_actual == compania_objetivo.upper():
             print(f"Éxito: El contexto actual ya es {compania_objetivo.upper()}.")
             return True
-            
+
         if contexto_actual == "DESCONOCIDO":
             print("Advertencia: No se pudo determinar el contexto actual. Asumiendo BCI por defecto.", flush=True)
             contexto_actual = "BCI"
 
         print(f"Contexto actual es {contexto_actual}. Intentando cambiar a {compania_objetivo.upper()}...")
-        
+
         try:
-            # Paso 1: Encontrar el selector de contexto en la sección "Local actual"
-            # Buscar el enlace bs-selector que muestra la compañía actual
-            context_selector = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "a.bs-selector.grande.visited"))
+            # Paso 1: Encontrar el dropdown arrow trigger
+            dropdown_arrow = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "img[src*='icon-ui-nav-flecha-abajo.svg']"))
             )
-            print("Selector de contexto encontrado.")
+            print("Dropdown arrow encontrado.")
 
-            # Paso 2: Hacer clic en el selector para abrir el dropdown
-            driver.execute_script("arguments[0].click();", context_selector)
-            print("Clic en selector de contexto realizado.")
+            # Paso 2: Hacer clic en el dropdown arrow para abrir el menú de contexto
+            driver.execute_script("arguments[0].click();", dropdown_arrow)
+            print("Clic en dropdown arrow realizado.")
 
-            # Paso 3: Esperar a que las opciones del dropdown aparezcan dinámicamente
-            # Esperar hasta que aparezcan opciones con "BCI Seguros" o "Zenit"
+            # Paso 3: Esperar a que aparezcan las opciones del menú
             WebDriverWait(driver, 10).until(
-                lambda d: len(d.find_elements(By.XPATH, "//*[contains(text(), 'BCI Seguros') or contains(text(), 'Zenit')]")) > 0
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, "a.bs-selector.grande, a.bs-selector.grande.visited")) > 0
             )
-            print("Opciones del dropdown cargadas.")
+            print("Opciones del menú de contexto cargadas.")
 
             # Paso 4: Encontrar y seleccionar la opción correcta
             option_found = False
-            # Buscar todas las opciones visibles en el dropdown
-            options = driver.find_elements(By.XPATH, "//a[contains(@class, 'bs-selector') or contains(text(), 'BCI Seguros') or contains(text(), 'Zenit')]")
+            # Buscar opciones con las clases especificadas
+            options = driver.find_elements(By.CSS_SELECTOR, "a.bs-selector.grande, a.bs-selector.grande.visited")
             for option in options:
                 if option.is_displayed() and option.is_enabled():
                     option_text = option.text.strip()
@@ -784,8 +721,8 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
                         break
 
             if not option_found:
-                print(f"Error: No se encontró la opción '{texto_opcion_menu}' en el dropdown.")
-                raise TimeoutException(f"La opción '{texto_opcion_menu}' no fue encontrada en el dropdown.")
+                print(f"Error: No se encontró la opción '{texto_opcion_menu}' en el menú.")
+                raise TimeoutException(f"La opción '{texto_opcion_menu}' no fue encontrada en el menú.")
 
             # Paso 5: Esperar y verificar el cambio
             print("Cambio de contexto solicitado. Esperando carga de página...")
@@ -808,7 +745,7 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
                 traceback.print_exc()
                 return False
             time.sleep(3)
-            
+
         except Exception as e:
             print(f"Error inesperado en el intento {attempt}: {e}")
             take_screenshot(driver, f"contexto_error_inesperado_attempt_{attempt}.png")
