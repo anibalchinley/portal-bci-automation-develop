@@ -92,12 +92,12 @@ def detectar_contexto_actual(driver):
         logo_src = logo_element.get_attribute("src").lower()
         print(f"Src del logo encontrado: '{logo_src}'")
 
-        if "bciseguros" in logo_src:
-            print("Contexto detectado: BCI")
-            return "BCI"
-        elif "zenit" in logo_src:
+        if "zenit" in logo_src:
             print("Contexto detectado: ZENIT")
             return "ZENIT"
+        elif "bciseguros" in logo_src:
+            print("Contexto detectado: BCI")
+            return "BCI"
 
         print(f"Contexto desconocido en el src del logo: '{logo_src}'")
         return "DESCONOCIDO"
