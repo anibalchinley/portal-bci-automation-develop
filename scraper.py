@@ -26,7 +26,7 @@ from selenium_stealth import stealth
 def detectar_contexto_actual(driver):
     """
     Detecta el contexto actual (BCI o Zenit) basado en el texto del bs-selector en la sección "Local actual".
-    Espera hasta 10 segundos para que aparezca el selector.
+    Espera hasta 20 segundos para que aparezca el selector, con múltiples estrategias de detección.
 
     Args:
         driver: Instancia de Selenium WebDriver.
@@ -35,14 +35,55 @@ def detectar_contexto_actual(driver):
         str: "BCI", "ZENIT", o "DESCONOCIDO" si no se encuentra ninguno.
     """
     try:
-        # Espera explícita para el bs-selector
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "a.bs-selector.grande.visited"))
-        )
+        # Primero esperar a que la página esté completamente cargada
+        if not esperar_pagina_cargada(driver, timeout=15):
+            print("Advertencia: La página no se cargó completamente antes de detectar contexto.")
+            return "DESCONOCIDO"
+
+        # Verificar si estamos dentro de un iframe y cambiar al contexto principal si es necesario
+        try:
+            driver.switch_to.default_content()
+        except Exception:
+            pass  # Ya estamos en el contexto principal
+
+        # Lista de selectores posibles para el bs-selector, ordenados por prioridad
+        selectors = [
+            "a.bs-selector.grande.visited",
+            "a.bs-selector.grande",
+            "a.bs-selector.visited",
+            "a.bs-selector",
+            "[class*='bs-selector']",
+            "a[class*='bs-selector']"
+        ]
+
+        selector_element = None
+        for selector in selectors:
+            try:
+                print(f"Intentando encontrar bs-selector con: {selector}")
+                # Espera hasta 10 segundos por selector
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                )
+                selector_element = driver.find_element(By.CSS_SELECTOR, selector)
+                if selector_element.is_displayed():
+                    print(f"Selector encontrado y visible: {selector}")
+                    break
+                else:
+                    print(f"Selector encontrado pero no visible: {selector}")
+            except TimeoutException:
+                print(f"Timeout esperando selector: {selector}")
+                continue
+            except Exception as e:
+                print(f"Error con selector {selector}: {e}")
+                continue
+
+        if not selector_element:
+            print("Error: Ningún selector de bs-selector fue encontrado.")
+            return "DESCONOCIDO"
 
         # Obtener el texto del selector
-        selector_element = driver.find_element(By.CSS_SELECTOR, "a.bs-selector.grande.visited")
         selector_text = selector_element.text.strip().upper()
+        print(f"Texto del selector encontrado: '{selector_text}'")
 
         if "BCI" in selector_text:
             print("Contexto detectado: BCI")
@@ -51,9 +92,11 @@ def detectar_contexto_actual(driver):
             print("Contexto detectado: ZENIT")
             return "ZENIT"
 
+        print(f"Contexto desconocido en el texto del selector: '{selector_text}'")
         return "DESCONOCIDO"
+
     except TimeoutException:
-        print("Error de Timeout: No se encontró el bs-selector a tiempo.")
+        print("Error de Timeout: No se encontró el bs-selector a tiempo con ninguno de los selectores.")
         return "DESCONOCIDO"
     except Exception as e:
         print(f"Error inesperado en detectar_contexto_actual: {e}")
