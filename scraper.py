@@ -46,6 +46,9 @@ def detectar_contexto_actual(driver):
         except Exception:
             pass  # Ya estamos en el contexto principal
 
+        # DEBUG: Tomar screenshot antes de intentar encontrar el selector
+        take_screenshot(driver, "debug_contexto_before_selector.png")
+
         # Lista de selectores posibles para el bs-selector, ordenados por prioridad
         selectors = [
             "a.bs-selector.grande.visited",
@@ -79,6 +82,41 @@ def detectar_contexto_actual(driver):
 
         if not selector_element:
             print("Error: Ningún selector de bs-selector fue encontrado.")
+            # DEBUG: Imprimir todos los elementos con 'bs-selector' en la clase
+            print("DEBUG: Buscando todos los elementos con 'bs-selector' en la clase...")
+            bs_selector_elements = driver.find_elements(By.CSS_SELECTOR, "[class*='bs-selector']")
+            print(f"DEBUG: Encontrados {len(bs_selector_elements)} elementos con 'bs-selector' en la clase:")
+            for i, elem in enumerate(bs_selector_elements):
+                print(f"  Elemento {i+1}: tag='{elem.tag_name}', text='{elem.text}', visible={elem.is_displayed()}, enabled={elem.is_enabled()}")
+                attrs = {attr: elem.get_attribute(attr) for attr in ['class', 'id', 'href'] if elem.get_attribute(attr)}
+                print(f"    Atributos: {attrs}")
+
+            # DEBUG: Imprimir todos los elementos 'a'
+            print("DEBUG: Buscando todos los elementos 'a'...")
+            a_elements = driver.find_elements(By.TAG_NAME, "a")
+            print(f"DEBUG: Encontrados {len(a_elements)} elementos 'a':")
+            for i, elem in enumerate(a_elements[:20]):  # Limitar a los primeros 20 para no saturar
+                print(f"  Elemento 'a' {i+1}: text='{elem.text}', href='{elem.get_attribute('href')}', visible={elem.is_displayed()}")
+                attrs = {attr: elem.get_attribute(attr) for attr in ['class', 'id'] if elem.get_attribute(attr)}
+                print(f"    Atributos: {attrs}")
+
+            # DEBUG: Verificar iframes
+            print("DEBUG: Verificando iframes...")
+            iframes = driver.find_elements(By.TAG_NAME, "iframe")
+            print(f"DEBUG: Encontrados {len(iframes)} iframes:")
+            for i, iframe in enumerate(iframes):
+                print(f"  Iframe {i+1}: src='{iframe.get_attribute('src')}', visible={iframe.is_displayed()}")
+
+            # DEBUG: Buscar texto "Local actual"
+            print("DEBUG: Buscando texto 'Local actual'...")
+            try:
+                local_actual_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Local actual')]")
+                print(f"DEBUG: Encontrados {len(local_actual_elements)} elementos con 'Local actual':")
+                for i, elem in enumerate(local_actual_elements):
+                    print(f"  Elemento {i+1}: tag='{elem.tag_name}', text='{elem.text}', visible={elem.is_displayed()}")
+            except Exception as e:
+                print(f"DEBUG: Error al buscar 'Local actual': {e}")
+
             return "DESCONOCIDO"
 
         # Obtener el texto del selector
