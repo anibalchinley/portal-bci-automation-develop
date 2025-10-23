@@ -692,7 +692,7 @@ def manejar_posibles_popups(driver):
 def asegurar_contexto(driver, compania_objetivo, max_retries=2):
     """
     Asegura que el bot esté operando en el contexto deseado (BCI o ZENIT).
-    Versión 9.6: Comparación case-insensitive y limpieza de debug logs.
+    Versión 9.7: Verifica existencia del selector antes de intentar cambio de contexto.
 
     Args:
         driver: Instancia de Selenium WebDriver.
@@ -702,8 +702,8 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
     Returns:
         bool: True si el contexto es o se cambió al objetivo, False en caso contrario.
     """
-    print(f"\n--- Asegurando contexto {compania_objetivo.upper()} (v9.6) ---", flush=True)
-    
+    print(f"\n--- Asegurando contexto {compania_objetivo.upper()} (v9.7) ---", flush=True)
+
     opciones_menu = {
         "BCI": "BCI Seguros",
         "ZENIT": "Zenit Seguros"
@@ -711,6 +711,29 @@ def asegurar_contexto(driver, compania_objetivo, max_retries=2):
     texto_opcion_menu = opciones_menu.get(compania_objetivo.upper())
     if not texto_opcion_menu:
         print(f"Error: Compañía objetivo '{compania_objetivo}' no es válida.", flush=True)
+        return False
+
+    # Verificar si el bs-selector existe antes de intentar cambiar contexto
+    selector_exists = False
+    selectors = [
+        "a.bs-selector.grande.visited",
+        "a.bs-selector.grande",
+        "a.bs-selector.visited",
+        "a.bs-selector",
+        "[class*='bs-selector']",
+        "a[class*='bs-selector']"
+    ]
+    for selector in selectors:
+        try:
+            elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            if elements and any(elem.is_displayed() for elem in elements):
+                selector_exists = True
+                break
+        except Exception:
+            continue
+
+    if not selector_exists:
+        print(f"Advertencia: El selector bs-selector no existe en la página. No es posible cambiar contexto a {compania_objetivo.upper()}. Saltando esta compañía.", flush=True)
         return False
 
     for attempt in range(1, max_retries + 1):
