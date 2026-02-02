@@ -1,5 +1,5 @@
 # Usar imagen oficial de Selenium que ya tiene Chrome/ChromeDriver configurados
-FROM selenium/standalone-chromium:4.25.0-20240806
+FROM selenium/standalone-chromium:131.0.6778
 
 # Establecer el directorio de trabajo
 WORKDIR /app
