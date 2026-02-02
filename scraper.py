@@ -211,6 +211,18 @@ def setup_driver():
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-software-rasterizer")
+        # Opciones adicionales para entorno headless
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-translate")
+        options.add_argument("--disable-background-networking")
+        options.add_argument("--disable-sync")
+        options.add_argument("--metrics-recording-only")
+        options.add_argument("--mute-audio")
+        options.add_argument("--no-first-run")
+        options.add_argument("--safebrowsing-disable-auto-update")
+        # Habilitar logging para debug
+        options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
         download_dir = "/tmp/downloads"
         os.makedirs(download_dir, exist_ok=True)
         print("3. Directorio de descargas configurado en /tmp/downloads.", flush=True)
@@ -233,7 +245,7 @@ def setup_driver():
             print("4. ¡ÉXITO! WebDriver de Selenium (Modo Estándar) inicializado.", flush=True)
         except Exception as e:
             print(f"Error al inicializar webdriver.Chrome: {e}", flush=True)
-            print("Esto puede indicar un problema con el chromedriver en el PATH del servidor.", flush=True)
+            print("Esto puede indicar un problema con el chromedriver o bibliotecas faltantes.", flush=True)
             return None
 
         print("5. Aplicando parches de sigilo con selenium-stealth...", flush=True)
