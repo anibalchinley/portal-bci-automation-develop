@@ -210,6 +210,7 @@ def setup_driver():
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-software-rasterizer")
         download_dir = "/tmp/downloads"
         os.makedirs(download_dir, exist_ok=True)
         print("3. Directorio de descargas configurado en /tmp/downloads.", flush=True)
