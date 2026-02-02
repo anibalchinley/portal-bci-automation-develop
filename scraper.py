@@ -10,8 +10,9 @@ import traceback
 import pdfplumber
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from selenium import webdriver # Reemplazamos UC por el webdriver estándar
+from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
@@ -222,12 +223,12 @@ def setup_driver():
         options.add_argument("--window-size=1920,1080")
         print("2. Opciones de Chrome (headless, no-sandbox, etc.) añadidas.", flush=True)
 
-        # En el entorno de Render, el chromedriver que instala el Dockerfile está en el PATH del sistema.
-        # Selenium lo encuentra automáticamente, por lo que no es necesario un Service object.
+        # Usar explícitamente el ChromeDriver instalado en /usr/local/bin/chromedriver
         print("3. Inicializando webdriver.Chrome...", flush=True)
         
         try:
-            driver = webdriver.Chrome(options=options)
+            service = ChromeService(executable_path="/usr/local/bin/chromedriver")
+            driver = webdriver.Chrome(service=service, options=options)
             print("4. ¡ÉXITO! WebDriver de Selenium (Modo Estándar) inicializado.", flush=True)
         except Exception as e:
             print(f"Error al inicializar webdriver.Chrome: {e}", flush=True)
