@@ -4,11 +4,7 @@ FROM selenium/standalone-chromium:latest
 # Establecer el directorio de trabajo
 WORKDIR /app
 
-# Instalar Python y dependencias
-RUN mkdir -p /var/lib/apt/lists/partial && apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    --no-install-recommends
+# La imagen ya tiene Python3 instalado
 
 # Copiar el archivo de dependencias de Python e instalarlas
 COPY requirements.txt .
