@@ -5,11 +5,10 @@ FROM selenium/standalone-chromium:latest
 WORKDIR /app
 
 # Instalar Python y dependencias
-RUN apt-get update && apt-get install -y \
+RUN mkdir -p /var/lib/apt/lists/partial && apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends
 
 # Copiar el archivo de dependencias de Python e instalarlas
 COPY requirements.txt .
