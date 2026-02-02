@@ -4,8 +4,8 @@ FROM python:3.11-slim
 # 2. Establecer el directorio de trabajo dentro del contenedor.
 WORKDIR /app
 
-# 3. Instalar dependencias del sistema (curl para descargar y unzip para extraer).
-RUN apt-get update && apt-get install -y curl unzip --no-install-recommends
+# 3. Instalar dependencias del sistema (curl, wget, unzip para descargar y extraer Chrome/ChromeDriver).
+RUN apt-get update && apt-get install -y curl wget unzip --no-install-recommends
 
 # 4. Instalar Google Chrome desde Chrome for Testing (misma fuente que ChromeDriver)
 # Esto asegura que Chrome y ChromeDriver tengan versiones compatibles
