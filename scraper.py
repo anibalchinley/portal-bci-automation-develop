@@ -11,8 +11,6 @@ import pdfplumber
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
@@ -236,13 +234,14 @@ def setup_driver():
         options.add_argument("--window-size=1920,1080")
         print("2. Opciones de Chrome (headless, no-sandbox, etc.) añadidas.", flush=True)
 
-        # Usar explícitamente el ChromeDriver instalado en /usr/local/bin/chromedriver
+        # En la imagen oficial de Selenium, chromedriver está en el PATH
         print("3. Inicializando webdriver.Chrome...", flush=True)
         
         try:
-            service = ChromeService(executable_path="/usr/local/bin/chromedriver")
-            driver = webdriver.Chrome(service=service, options=options)
-            print("4. ¡ÉXITO! WebDriver de Selenium (Modo Estándar) inicializado.", flush=True)
+            # La imagen de Selenium tiene chromedriver en /usr/local/bin/
+            # que ya está en el PATH del sistema
+            driver = webdriver.Chrome(options=options)
+            print("4. ¡ÉXITO! WebDriver de Selenium inicializado.", flush=True)
         except Exception as e:
             print(f"Error al inicializar webdriver.Chrome: {e}", flush=True)
             print("Esto puede indicar un problema con el chromedriver o bibliotecas faltantes.", flush=True)
