@@ -189,7 +189,7 @@ class NotionManager:
 
                     # Añadir la propiedad de fecha solo si es válida
                     if formatted_date:
-                        siniestro_properties["📅Agendamiento"] = {"date": {"start": formatted_date}}
+                        siniestro_properties["Agendamiento"] = {"date": {"start": formatted_date}}
 
                     # Añadir relaciones si existen los IDs
                     if cliente_id:
