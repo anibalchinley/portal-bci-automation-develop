@@ -117,7 +117,7 @@ class NotionManager:
                         telefono = siniestro.get('TelefonoAsegurado') or None
 
                         cliente_properties = {
-                            "Nombre": {"title": [{"text": {"content": siniestro.get('NombreAsegurado', '').title()}}]}, # Title
+                            "Nombre de Cliente": {"title": [{"text": {"content": siniestro.get('NombreAsegurado', '').title()}}]}, # Title
                             "Rut": {"rich_text": [{"text": {"content": siniestro.get('RutAsegurado')}}]}, # Text
                             "Teléfono (C)": {"phone_number": telefono}, # Phone Number
                             "Correo (C)": {"email": email} # Email
